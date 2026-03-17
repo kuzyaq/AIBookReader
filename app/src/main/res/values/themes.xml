@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.AIBookReader" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.AIBookReader" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Включаем overlay mode для ActionMode, чтобы он правильно работал с Compose -->
+        <item name="android:windowActionModeOverlay">true</item>
+        <!-- Настраиваем стиль ActionMode для правильного отображения -->
+        <item name="android:actionModeStyle">@style/CustomActionMode</item>
+    </style>
+
+    <style name="CustomActionMode" parent="@android:style/Widget.Material.ActionMode">
+        <!-- Настройки для кастомного ActionMode -->
+        <item name="android:background">@android:color/white</item>
+        <item name="android:titleTextStyle">@style/ActionModeTitle</item>
+    </style>
+
+    <style name="ActionModeTitle" parent="@android:style/TextAppearance.Material.Widget.ActionMode.Title">
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
 </resources>

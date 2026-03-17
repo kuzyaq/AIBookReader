@@ -3,6 +3,7 @@ package com.example.aibookreader.di
 import android.content.Context
 import androidx.room.Room
 import com.example.aibookreader.data.local.dao.BookDao
+import com.example.aibookreader.data.local.dao.ChatHistoryDao
 import com.example.aibookreader.data.local.dao.ReaderBlockDao
 import com.example.aibookreader.data.local.dao.ReadingProgressDao
 import com.example.aibookreader.data.local.database.AppDatabase
@@ -42,6 +43,12 @@ object DatabaseModule {
     @Singleton
     fun provideReaderBlockDao(database: AppDatabase): ReaderBlockDao {
         return database.readerBlockDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideChatHistoryDao(database: AppDatabase): ChatHistoryDao {
+        return database.chatHistoryDao()
     }
 
     @Provides

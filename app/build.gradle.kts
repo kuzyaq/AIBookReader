@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.secrets.gradle.plugin)
 }
 
 android {
@@ -18,6 +19,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
     }
 
     buildTypes {
@@ -38,7 +40,12 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+}
+
+secrets {
+    propertiesFileName = "local.properties"
 }
 
 dependencies {
@@ -46,6 +53,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.compose.ui.text)
+    implementation(libs.generativeai)
     val nav_version = "2.9.7"
     val coroutines_version = "1.10.2"
     val room_version = "2.8.4"
@@ -110,6 +118,14 @@ dependencies {
 
     // Jsoup
     implementation("org.jsoup:jsoup:1.22.1")
+
+    // Gemini implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
+    // Retrofit + OkHttp
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 
     // Testing
     //testImplementation 'junit:junit:4.13.2'

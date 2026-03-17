@@ -1,15 +1,21 @@
 package com.example.aibookreader.di
 
 import com.example.aibookreader.data.epub.EpubParserImpl
+import com.example.aibookreader.data.remote.gemini.GeminiApiService
+import com.example.aibookreader.data.remote.gemini.GeminiClient
+import com.example.aibookreader.data.remote.gemini.GeminiContent
+import com.example.aibookreader.data.repository.AiRepositoryImpl
 import com.example.aibookreader.data.repository.BookRepositoryImpl
 import com.example.aibookreader.data.repository.FileStorageRepositoryImpl
 import com.example.aibookreader.data.repository.ReaderRepositoryImpl
+import com.example.aibookreader.domain.repository.AiRepository
 import com.example.aibookreader.domain.repository.BookRepository
 import com.example.aibookreader.domain.repository.FileStorageRepository
 import com.example.aibookreader.domain.repository.ReaderRepository
 import com.example.aibookreader.domain.service.EpubParser
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -42,4 +48,19 @@ abstract class AppModule {
     abstract fun bindFileStorageRepository(
         fileStorageRepositoryImpl: FileStorageRepositoryImpl
     ): FileStorageRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAiRepository(
+        aiRepositoryImpl: AiRepositoryImpl
+    ): AiRepository
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AiNetworkModule {
+
+    @Provides
+    @Singleton
+    fun provideGeminiApiService(): GeminiApiService = GeminiClient.service
 }

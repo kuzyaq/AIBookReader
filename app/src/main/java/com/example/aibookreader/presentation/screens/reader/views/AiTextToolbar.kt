@@ -1,5 +1,6 @@
-package com.example.aibookreader.presentation.screens.reader
+package com.example.aibookreader.presentation.screens.reader.views
 
+import android.util.Log
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
@@ -30,11 +31,14 @@ fun rememberAiTextToolbar(onAiSelected: (String) -> Unit): TextToolbar {
     callbackRef.value = onAiSelected
 
     return remember(view) {
+        Log.d("AiTextToolbar", "Creating new AiTextToolbar instance")
         AiTextToolbar(
             view         = view,
             getClipboard = { clipboardManager.getText()?.text },
             onAiSelected = { callbackRef.value(it) }
-        )
+        ).also {
+            Log.d("AiTextToolbar", "AiTextToolbar created successfully")
+        }
     }
 }
 
@@ -67,6 +71,7 @@ class AiTextToolbar(
         onCutRequested      : (() -> Unit)?,
         onSelectAllRequested: (() -> Unit)?
     ) {
+        Log.d("AiTextToolbar", "showMenu called with rect: $rect")
         lastRect      = rect
         copyCallback  = onCopyRequested
         cutCallback   = onCutRequested
@@ -74,14 +79,19 @@ class AiTextToolbar(
         selectAll     = onSelectAllRequested
 
         if (actionMode == null) {
-            actionMode = view.startActionMode(modeCallback, ActionMode.TYPE_FLOATING)
+            Log.d("AiTextToolbar", "Creating new ActionMode")
+            // Используем TYPE_PRIMARY вместо TYPE_FLOATING для лучшего перехвата событий
+            actionMode = view.startActionMode(modeCallback, ActionMode.TYPE_PRIMARY)
+            Log.d("AiTextToolbar", "ActionMode created: ${actionMode != null}")
         } else {
+            Log.d("AiTextToolbar", "Invalidating existing ActionMode")
             actionMode?.invalidate()
         }
         _status = TextToolbarStatus.Shown
     }
 
     override fun hide() {
+        Log.d("AiTextToolbar", "hide called")
         actionMode?.finish()
         actionMode = null
         _status = TextToolbarStatus.Hidden
@@ -91,36 +101,45 @@ class AiTextToolbar(
 
     private val modeCallback = object : ActionMode.Callback2() {
 
-        override fun onCreateActionMode(mode: ActionMode, menu: Menu) = buildMenu(menu)
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            Log.d("AiTextToolbar", "onCreateActionMode called")
+            return buildMenu(menu)
+        }
 
         override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+            Log.d("AiTextToolbar", "onPrepareActionMode called")
             menu.clear()
             return buildMenu(menu)
         }
 
         private fun buildMenu(menu: Menu): Boolean {
+            Log.d("AiTextToolbar", "buildMenu called")
             var order = 0
             if (copyCallback  != null) menu.add(0, COPY,       order++, "Копировать").showAlways()
             if (cutCallback   != null) menu.add(0, CUT,        order++, "Вырезать").showIfRoom()
             if (pasteCallback != null) menu.add(0, PASTE,      order++, "Вставить").showIfRoom()
             if (selectAll     != null) menu.add(0, SELECT_ALL, order++, "Выделить всё").showIfRoom()
             menu.add(0, AI, order, "✨ ИИ").showAlways()
+            Log.d("AiTextToolbar", "Menu built with ${menu.size()} items")
             return true
         }
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            Log.d("AiTextToolbar", "onActionItemClicked: ${item.title} (id: ${item.itemId})")
             when (item.itemId) {
                 COPY       -> { copyCallback?.invoke();  mode.finish() }
                 CUT        -> { cutCallback?.invoke();   mode.finish() }
                 PASTE      -> { pasteCallback?.invoke(); mode.finish() }
                 SELECT_ALL -> { selectAll?.invoke() }
                 AI         -> {
+                    Log.d("AiTextToolbar", "AI button clicked")
                     // Сначала копируем выделенный текст в буфер обмена
                     copyCallback?.invoke()
                     // view.post — читаем буфер только после того,
                     // как copyCallback обновил его (исправляет race condition)
                     view.post {
                         val text = getClipboard()
+                        Log.d("AiTextToolbar", "Clipboard text: $text")
                         if (!text.isNullOrBlank()) {
                             onAiSelected(text)
                         }
