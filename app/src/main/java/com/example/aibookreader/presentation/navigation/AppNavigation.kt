@@ -8,13 +8,23 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.aibookreader.presentation.screens.addbook.AddBookScreen
+import com.example.aibookreader.presentation.screens.auth.login.LoginScreen
+import com.example.aibookreader.presentation.screens.auth.register.RegisterScreen
 import com.example.aibookreader.presentation.screens.home.HomeScreen
 import com.example.aibookreader.presentation.screens.reader.ReaderScreen
+import com.example.aibookreader.presentation.screens.splash.SplashScreen
 
 
 sealed class Screen(val route: String) {
-    object Home : Screen("home")
-    object AddBook : Screen("add_book")
+
+    object Splash: Screen("splash")
+
+    object Login: Screen("login")
+    object Register: Screen("register")
+
+    object Home: Screen("home")
+    object AddBook: Screen("add_book")
+    object Profile: Screen("profile")
 
     object Reader : Screen("reader/{bookId}") {
         fun createRoute(bookId: Int) = "reader/$bookId"
@@ -28,24 +38,53 @@ fun AppNavigation(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route,
+        startDestination = Screen.Splash.route,
         modifier = modifier
     ) {
+        composable(Screen.Splash.route){
+            SplashScreen(
+                onFinished = {
+                    navController.navigate(Screen.Home.route){
+                        popUpTo(Screen.Splash.route){ inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.Login.route) {
+            LoginScreen(
+                onLoginSuccess   = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateToRegister = {
+                    navController.navigate(Screen.Register.route)
+                }
+            )
+        }
+
+        composable(Screen.Register.route) {
+            RegisterScreen(
+                onRegisterSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                },
+                onNavigateToLogin = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.Home.route) {
             HomeScreen(
                 onBookClick = { bookId ->
                     navController.navigate(Screen.Reader.createRoute(bookId))
                 },
-                onAddBookClick = {
-                    navController.navigate(Screen.AddBook.route)
-                }
             )
         }
 
         composable(Screen.AddBook.route) {
-            AddBookScreen(
-                onNavigateBack = { navController.popBackStack() },
-            )
+            AddBookScreen()
         }
 
         composable(

@@ -18,43 +18,78 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    secondary = Secondary,
-    background = Color(0xFF121212),
-    surface = Color(0xFF1E1E1E),
-    onPrimary = OnPrimary,
-    onBackground = Color(0xFFE0E0E0),
-    onSurface = Color(0xFFE0E0E0),
-    error = Error
+// Тёмная тема приложения
+private val AppDarkColorScheme = darkColorScheme(
+    primary = PurpleLight,
+    onPrimary = NeutralWhite,
+    primaryContainer = PurpleDark,
+    onPrimaryContainer = PurpleContainer,
+    secondary = Emerald,
+    onSecondary = Neutral900,
+    secondaryContainer = EmeraldDark,
+    onSecondaryContainer = EmeraldContainer,
+    background = Color(0xFF121018),
+    onBackground = Color(0xFFE6E1F0),
+    surface = Color(0xFF1E1C2A),
+    onSurface = Color(0xFFE6E1F0),
+    surfaceVariant = Color(0xFF302E3F),
+    onSurfaceVariant = Color(0xFFCAC4D0),
+    outline = Color(0xFF958DA5),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Primary,
-    secondary = Secondary,
-    background = Background,
-    surface = Surface,
-    onPrimary = OnPrimary,
-    onBackground = OnBackground,
-    onSurface = OnSurface,
-    error = Error
+// Светлая тема приложения
+private val AppLightColorScheme = lightColorScheme(
+    primary = Purple,
+    onPrimary = NeutralWhite,
+    primaryContainer = PurpleContainer,
+    onPrimaryContainer = OnPurpleContainer,
+    secondary = Emerald,
+    onSecondary = NeutralWhite,
+    secondaryContainer = EmeraldContainer,
+    onSecondaryContainer = OnEmeraldContainer,
+    background = Neutral100,
+    onBackground = Neutral900,
+    surface = NeutralWhite,
+    onSurface = Neutral900,
+    surfaceVariant = Color(0xFFF0EEFF),
+    onSurfaceVariant = Neutral700,
+    outline = Color(0xFF79757F),
+    error = ErrorRed,
+    onError = NeutralWhite,
 )
 
-// Специальная схема для ридера
+// Светлая тема ридера
 private val ReaderLightColorScheme = lightColorScheme(
-    primary = Primary,
-    background = ReadingBackgroundLight,
-    surface = ReadingSurfaceLight,
-    onBackground = ReadingTextLight,
-    onSurface = ReadingTextLight
+    primary = Purple,
+    onPrimary = NeutralWhite,
+    primaryContainer = PurpleContainer,
+    onPrimaryContainer = OnPurpleContainer,
+    secondary = Emerald,
+    onSecondary = NeutralWhite,
+    background = ReaderBgLight,
+    onBackground = ReaderTextLight,
+    surface = ReaderSurfaceLight,
+    onSurface = ReaderTextLight,
+    surfaceVariant = Color(0xFFF0EEFF),
+    onSurfaceVariant = Color(0xFF6B6680),
 )
 
+//Тёмная тема ридера
 private val ReaderDarkColorScheme = darkColorScheme(
-    primary = Primary,
-    background = ReadingBackgroundDark,
-    surface = ReadingSurfaceDark,
-    onBackground = ReadingTextDark,
-    onSurface = ReadingTextDark
+    primary = PurpleLight,
+    onPrimary = NeutralWhite,
+    primaryContainer = PurpleDark,
+    onPrimaryContainer = PurpleContainer,
+    secondary = EmeraldLight,
+    onSecondary = Neutral900,
+    background = ReaderBgDark,
+    onBackground = ReaderTextDark,
+    surface = ReaderSurfaceDark,
+    onSurface = ReaderTextDark,
+    surfaceVariant = Color(0xFF2E2C40),
+    onSurfaceVariant = Color(0xFFCAC4D0),
 )
 
 @Composable
@@ -69,19 +104,23 @@ fun AIBookReaderTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
+
         isReaderMode && darkTheme -> ReaderDarkColorScheme
         isReaderMode && !darkTheme -> ReaderLightColorScheme
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> AppDarkColorScheme
+        else -> AppLightColorScheme
     }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // В режиме ридера цвет статус-бара сливается с фоном
-            window.statusBarColor = if (isReaderMode) colorScheme.surface.toArgb() else colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = if (isReaderMode)
+                colorScheme.background.toArgb()
+            else
+                colorScheme.primary.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+                !darkTheme
         }
     }
 

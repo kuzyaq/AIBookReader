@@ -18,33 +18,56 @@ class GetChatHistoryUseCase @Inject constructor(
 class SendAiRequestUseCase @Inject constructor(
     private val repository: AiRepository
 ){
-    suspend operator fun invoke(bookId: Int, action: String, selectedText: String): Result<String> {
-        val (message, prompt) = buildPrompt(action, selectedText)
-        return repository.sendAiRequest(bookId, prompt, message)
+    suspend operator fun invoke(bookId: Int, action: String, selectedText: String, pageContext: String = ""): Result<String> {
+        val (userMessage, prompt) = buildPrompt(action, selectedText, pageContext)
+        return repository.sendAiRequest(bookId, prompt, userMessage)
     }
 
-    private fun buildPrompt(action: String, text: String): Pair<String, String> {
+    private fun buildPrompt(action: String, selectedText: String, pageContext: String): Pair<String, String> {
+
+        val contextSection = if (pageContext.isNotBlank() && pageContext != selectedText) {
+            "Контекст (текущая страница книги):\n«$pageContext»\n\n"
+        } else ""
+
+        val selectedSection = "Выделенный фрагмент для анализа:\n«$selectedText»\n\n"
+
         return when (action) {
             "explain" -> Pair(
-                "Объясни выделенный текст",
-                "Объясни простыми словами этот фрагмент из книги. Отвечай на русском языке:\n\n$text"
+                "Объясни выделенный текст: \n«$selectedText»",
+                "${contextSection}${selectedSection}" +
+                        "Задание: Объясни простыми словами выделенный фрагмент. " +
+                        "Используй контекст страницы чтобы дать точное и полное объяснение. " +
+                        "Отвечай на русском языке. Убери форматирование текста."
             )
             "summary" -> Pair(
-                "Сделай пересказ",
-                "Сделай краткий пересказ этого фрагмента. Отвечай на русском языке:\n\n$text"
+                "Сделай пересказ выделенного текста",
+                "${contextSection}${selectedSection}" +
+                        "Задание: Сделай краткий пересказ выделенного фрагмента. " +
+                        "Учти что происходило на странице для полного понимания. " +
+                        "Отвечай на русском языке. Убери форматирование текста."
             )
             "quiz" -> Pair(
                 "Создай тест",
-                "Создай 3 вопроса с вариантами ответов для проверки понимания текста. Отвечай на русском языке:\n\n$text"
+                "${contextSection}${selectedSection}" +
+                        "Задание: Создай 3 вопроса с вариантами ответов для проверки " +
+                        "понимания выделенного фрагмента. Вопросы должны учитывать " +
+                        "контекст страницы. Отвечай на русском языке. Убери форматирование текста."
             )
             "translate" -> Pair(
-                "Переведи текст",
-                "Переведи этот текст на русский язык:\n\n$text"
+                "Переведи текст: \n«$selectedText»",
+                "${contextSection}${selectedSection}"+
+                        "Задание: Переведи выделенный текст на русский язык. " +
+                        "Учитывай контекст страницы для более точного перевода. Убери форматирование текста."
             )
             else -> Pair(
+                // Произвольный вопрос из поля ввода
                 action,
-                // Произвольный вопрос пользователя — добавляем контекст книги
-                "Контекст из книги:\n\"$text\"\n\nВопрос: $action"
+                // Для свободного вопроса контекст особенно важен:
+                // пользователь может спросить «а кто этот человек?»
+                // и без контекста ИИ не поймёт о ком речь
+                "${contextSection}${selectedSection}" +
+                        "Вопрос пользователя: $action" +
+                        "Учитывай контекст страницы. Убери форматирование текста."
             )
         }
     }

@@ -21,5 +21,8 @@ data class ReaderUiState (
     val isAiLoading: Boolean = false,
     val aiError: String? = null,
     val chatMessages: List<ChatMessage> = emptyList(), // История чата в шторке
+    val isActionMode: Boolean = true, // флаг режима отображения BottomSheet
+
+    val selectionKey: Int = 0 // Токен для сброса выделения текста
 
 )

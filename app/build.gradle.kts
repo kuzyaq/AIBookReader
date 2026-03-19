@@ -99,10 +99,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
 
-    // DataStore (для настроек)
+    // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // Coil (для изображений)
+    // Coil
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // PDF Reader
@@ -126,6 +126,12 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+    // Shimmer
+    implementation("com.valentinilk.shimmer:compose-shimmer:1.3.3")
+
+    // Lottie
+    implementation("com.airbnb.android:lottie-compose:6.4.0")
 
     // Testing
     //testImplementation 'junit:junit:4.13.2'

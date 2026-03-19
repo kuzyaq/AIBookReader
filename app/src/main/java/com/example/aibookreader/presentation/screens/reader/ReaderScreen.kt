@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,6 +33,8 @@ import com.example.aibookreader.presentation.screens.reader.components.EpubPage
 import com.example.aibookreader.presentation.screens.reader.components.ReaderBottomBar
 import com.example.aibookreader.presentation.screens.reader.components.ReaderTopAppBar
 import com.example.aibookreader.presentation.theme.AIBookReaderTheme
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +47,10 @@ fun ReaderScreen(
     var showControls by remember { mutableStateOf(true) }
     var darkMode by remember { mutableStateOf(false) }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+
+    )
 
     LaunchedEffect(Unit) { viewModel.openBook(bookId = bookId) }
 
@@ -53,15 +59,24 @@ fun ReaderScreen(
         pageCount = { state.totalPages }
     )
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage != state.currentPage) {
-            viewModel.loadPage(pagerState.currentPage)
+    var initialScrollDone by remember { mutableStateOf(false) }
+    LaunchedEffect(state.isLoading) {
+        if (!state.isLoading && !initialScrollDone) {
+            if (pagerState.currentPage != state.currentPage) {
+                pagerState.scrollToPage(state.currentPage)
+            }
+            initialScrollDone = true
         }
     }
-    LaunchedEffect(state.currentPage) {
-        if (pagerState.currentPage != state.currentPage) {
-            pagerState.scrollToPage(state.currentPage)
-        }
+
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .distinctUntilChanged()
+            .collectLatest { page ->
+                if (initialScrollDone && page != state.currentPage) {
+                    viewModel.loadPage(page)
+                }
+            }
     }
 
     AIBookReaderTheme(darkTheme = darkMode, isReaderMode = true) {
@@ -83,20 +98,7 @@ fun ReaderScreen(
                         totalPages = state.totalPages,
                         onPreviousPage = { viewModel.previousPage() },
                         onNextPage = { viewModel.nextPage() },
-                        onAiClick = {
-                            // Собираем весь текст текущей страницы
-                            val pageText = state.blocks.joinToString("\n") { block ->
-                                when (block) {
-                                    is ReaderBlock.Title -> block.text
-                                    is ReaderBlock.Paragraph -> block.text
-                                    is ReaderBlock.Quote -> block.text
-                                    is ReaderBlock.Image -> ""
-                                }
-                            }.trim()
-                            if (pageText.isNotEmpty()) {
-                                viewModel.setSelectedText(pageText)
-                            }
-                        }
+                        onAiClick = { viewModel.openAiFromBottomBar() }
                     )
                 }
             }
@@ -107,7 +109,8 @@ fun ReaderScreen(
                     state = pagerState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(padding),
+                    userScrollEnabled = !state.isSheetOpen
                 ) { _ ->
                     if (!state.isLoading) {
                         // Используем SelectableTextView с кастомным ActionMode.Callback
@@ -115,9 +118,9 @@ fun ReaderScreen(
                             blocks = state.blocks,
                             onTap = { showControls = !showControls },
                             onAiSelected = { selectedText ->
-                                Log.d("ReaderScreen", "AI selected from TextView: $selectedText")
                                 viewModel.setSelectedText(selectedText)
-                            }
+                            },
+                            selectionKey = state.selectionKey
                         )
                     } else {
                         Box(Modifier.fillMaxSize()) {
@@ -135,7 +138,9 @@ fun ReaderScreen(
                             uiState = state,
                             onActionClick = { action -> viewModel.onAiActionClick(action) },
                             onSendMessage = { text -> viewModel.sendChatMessage(text) },
-                            onClearHistory = { viewModel.clearChatHistory() }
+                            onClearHistory = { viewModel.clearChatHistory() },
+                            onSwitchToChat = { viewModel.switchToChat() },
+                            onSwitchToActions = { viewModel.switchToActions() }
                         )
                     }
                 }

@@ -24,6 +24,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.update
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -38,27 +44,29 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    val books: StateFlow<List<Book>> = getBooksUseCase()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+
+    init {
+        observeBooks()
+    }
+
+    private fun observeBooks() {
+        getBooksUseCase()
+            .onStart { _uiState.update { it.copy(isLoading = true) } }
+            .onEach { books ->
+                _uiState.update { it.copy(books = books, isLoading = false) }
+            }
+            .catch { e ->
+                _uiState.update { it.copy(error = e.message, isLoading = false) }
+            }
+            .launchIn(viewModelScope)
+    }
 
     fun deleteBook(id: Int) {
         viewModelScope.launch {
             deleteBookUseCase(id)
         }
     }
-}
-
-private enum class FileType {
-    EPUB, PDF, UNKNOWN
-}
-
-sealed class ImportState {
-    object Idle: ImportState()
-    object Loading: ImportState()
-    data class Success(val bookId: Int): ImportState()
-    data class Error(val message: String): ImportState()
 }
