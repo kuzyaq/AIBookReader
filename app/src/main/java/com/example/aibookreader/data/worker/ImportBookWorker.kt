@@ -10,6 +10,7 @@ import com.example.aibookreader.domain.usecase.ImportEpubBookUseCase
 import com.example.aibookreader.domain.usecase.ImportPdfBookUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.io.File
 
 @HiltWorker
 class ImportBookWorker @AssistedInject constructor(
@@ -23,30 +24,25 @@ class ImportBookWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        android.util.Log.d("ImportBookWorker", "WORKER STARTED")
-
         val filePath = inputData.getString(KEY_FILE_PATH)
             ?: return Result.failure()
 
 
         return try {
 
+            val fileSize = File(filePath).takeIf { it.exists() }?.length() ?: 0L
             repository.createImportPlaceholder(
                 filePath,
-                0
+                fileSize
             )
 
-            val isEpub = filePath.contains(".epub", ignoreCase = true) ||
-                    applicationContext.contentResolver.getType(android.net.Uri.parse(filePath)) == "application/epub+zip"
+            val isEpub = filePath.endsWith(".epub", ignoreCase = true)
+            val isPdf = filePath.endsWith(".pdf", ignoreCase = true)
 
             val useCaseResult = when {
                 isEpub -> importEpubBookUseCase(filePath)
 
-                filePath.endsWith(".epub", true) ->
-                    importEpubBookUseCase(filePath)
-
-                filePath.endsWith(".pdf", true) ->
-                    importPdfBookUseCase(filePath, applicationContext)
+                isPdf -> importPdfBookUseCase(filePath, applicationContext)
 
                 else -> {
                     repository.markImportFailed(filePath)
@@ -61,11 +57,9 @@ class ImportBookWorker @AssistedInject constructor(
 
             useCaseResult.fold(
                 onSuccess = {
-                    android.util.Log.d("ImportBookWorker", "SUCCESS")
                     Result.success()
                 },
                 onFailure = { exception ->
-                    android.util.Log.e("ImportBookWorker", "UseCase failed: ${exception.message}", exception)
                     repository.markImportFailed(filePath)
 
                     Result.failure(
@@ -77,7 +71,6 @@ class ImportBookWorker @AssistedInject constructor(
             )
 
         } catch (e: Exception) {
-            android.util.Log.e("ImportBookWorker", "Import failed", e)
             repository.markImportFailed(filePath)
 
             Result.failure(

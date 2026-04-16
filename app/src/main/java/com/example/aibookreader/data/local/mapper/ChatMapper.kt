@@ -1,8 +1,6 @@
 package com.example.aibookreader.data.local.mapper
 
-import com.example.aibookreader.data.local.entity.BookEntity
 import com.example.aibookreader.data.local.entity.ChatMessageEntity
-import com.example.aibookreader.domain.model.Book
 import com.example.aibookreader.domain.model.ChatMessage
 
 object ChatMapper {

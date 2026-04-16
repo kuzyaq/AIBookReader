@@ -1,8 +1,5 @@
 package com.example.aibookreader.presentation.screens.splash
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutBack
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,29 +7,32 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
-import com.example.aibookreader.presentation.theme.Purple
-import com.example.aibookreader.presentation.theme.PurpleDark
-import kotlinx.coroutines.delay
 import com.example.aibookreader.R
-
 
 @Composable
 fun SplashScreen(
-    onFinished: () -> Unit
+    onNavigateHome: () -> Unit,
+    onNavigateLogin: () -> Unit,
+    viewModel: SplashViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(Unit) {
-        delay(3200)
-        onFinished()
+    val destination by viewModel.destination.collectAsState()
+
+    LaunchedEffect(destination) {
+        when (destination) {
+            SplashDestination.Home -> onNavigateHome()
+            SplashDestination.Login -> onNavigateLogin()
+            null -> {}
+        }
     }
 
     Box(

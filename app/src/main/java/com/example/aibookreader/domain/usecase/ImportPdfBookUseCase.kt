@@ -3,6 +3,8 @@ package com.example.aibookreader.domain.usecase
 import android.content.Context
 import com.example.aibookreader.data.pdf.PdfProcessor
 import com.example.aibookreader.domain.model.Book
+import com.example.aibookreader.domain.model.BookFormat
+import com.example.aibookreader.domain.model.BookStatus
 import com.example.aibookreader.domain.repository.BookRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,13 +18,8 @@ class ImportPdfBookUseCase @Inject constructor(
     suspend operator fun invoke(filePath: String, context: Context): Result<Int> =
         withContext(Dispatchers.IO) {
             try {
-                // Обрабатываем PDF и получаем метаданные
                 val pdfData = pdfProcessor.processPdf(filePath, context)
-
-                // Создаем книгу с точным количеством страниц из PDF
                 val book = createBookFromPdf(pdfData, filePath)
-
-                // Сохраняем в БД
                 repository.addBook(book)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -31,18 +28,18 @@ class ImportPdfBookUseCase @Inject constructor(
 
     private fun createBookFromPdf(pdfData: PdfProcessor.PdfData, filePath: String): Book {
         return Book(
+            id = 0,
             title = pdfData.title?.takeIf { it.isNotBlank() } ?: "Без названия",
             author = pdfData.author?.takeIf { it.isNotBlank() } ?: "Неизвестный автор",
-            fullText = pdfData.content ?: "", // Можно оставить пустым, загружать постранично
             coverImage = pdfData.coverImagePath,
-            currentPage = 1,
-            totalPages = pdfData.totalPages, // ← Используем точное количество из PDF!
+            currentPage = 0,
+            totalPages = pdfData.totalPages,
             filePath = filePath,
             fileSize = File(filePath).length(),
-            id = TODO(),
-            createdAt = TODO(),
-            lastReadAt = TODO(),
-            status = TODO(),
+            createdAt = System.currentTimeMillis(),
+            lastReadAt = System.currentTimeMillis(),
+            status = BookStatus.READY,
+            format = BookFormat.PDF
         )
     }
 }

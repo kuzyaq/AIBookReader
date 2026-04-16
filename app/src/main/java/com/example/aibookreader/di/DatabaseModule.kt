@@ -3,10 +3,12 @@ package com.example.aibookreader.di
 import android.content.Context
 import androidx.room.Room
 import com.example.aibookreader.data.local.dao.BookDao
+import com.example.aibookreader.data.local.dao.ChapterDao
 import com.example.aibookreader.data.local.dao.ChatHistoryDao
 import com.example.aibookreader.data.local.dao.ReaderBlockDao
 import com.example.aibookreader.data.local.dao.ReadingProgressDao
 import com.example.aibookreader.data.local.database.AppDatabase
+import com.example.aibookreader.data.local.database.BookDatabaseMigrations
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,7 +31,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration()
+            .addMigrations(BookDatabaseMigrations.MIGRATION_8_9)
             .build()
     }
 
@@ -53,7 +55,13 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideReadingProgressDao(database: AppDatabase): ReadingProgressDao{
+    fun provideReadingProgressDao(database: AppDatabase): ReadingProgressDao {
         return database.readingProgressDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideChapterDao(database: AppDatabase): ChapterDao {
+        return database.chapterDao()
     }
 }

@@ -21,46 +21,55 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ReaderBottomBar(
-    currentPage   : Int,
-    totalPages    : Int,
+    pageLabel: String,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
     onPreviousPage: () -> Unit,
-    onNextPage    : () -> Unit,
-    onAiClick     : () -> Unit
+    onNextPage: () -> Unit,
+    onAiClick: () -> Unit,
+    onTextSettingsClick: () -> Unit = {}
 ) {
     Surface(tonalElevation = 3.dp, color = MaterialTheme.colorScheme.primary) {
         Row(
-            modifier            = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment   = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onPreviousPage, enabled = currentPage > 1) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null,
+            IconButton(onClick = onPreviousPage, enabled = hasPrevious) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack, null,
                     tint = MaterialTheme.colorScheme.onPrimary.copy(
-                        alpha = if (currentPage > 1) 1f else 0.6f))
+                        alpha = if (hasPrevious) 1f else 0.4f
+                    )
+                )
             }
+
+            IconButton(onClick = onTextSettingsClick) {
+                Icon(
+                    Icons.Default.TextFields, "Настройки текста",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+
+            Text(
+                pageLabel,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+            )
 
             IconButton(onClick = onAiClick) {
-                Icon(Icons.Default.TextFields, "",
-                    tint = MaterialTheme.colorScheme.onPrimary)
+                Icon(
+                    Icons.Default.AutoAwesome, "ИИ",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text("$currentPage / $totalPages",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f))
-            }
-
-            IconButton(onClick = onAiClick) {
-                Icon(Icons.Default.AutoAwesome, "ИИ",
-                    tint = MaterialTheme.colorScheme.onPrimary)
-            }
-
-            IconButton(onClick = onNextPage, enabled = currentPage < totalPages) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, null,
+            IconButton(onClick = onNextPage, enabled = hasNext) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward, null,
                     tint = MaterialTheme.colorScheme.onPrimary.copy(
-                        alpha = if (currentPage < totalPages) 1f else 0.6f))
+                        alpha = if (hasNext) 1f else 0.4f
+                    )
+                )
             }
         }
     }

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,9 @@ fun AiAssistantSheetContent(
     var chatInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
+    val screenHeight = LocalConfiguration.current.screenHeightDp
+    val chatHeight = (screenHeight * 0.55f).dp
+
     LaunchedEffect(uiState.chatMessages.size, uiState.isAiLoading) {
         val index = if (uiState.isAiLoading) uiState.chatMessages.size
         else (uiState.chatMessages.size - 1).coerceAtLeast(0)
@@ -49,21 +53,17 @@ fun AiAssistantSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight()
             .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 16.dp)
+            .padding(top = 4.dp, bottom = 16.dp)
             .navigationBarsPadding()
             .imePadding()
     ) {
-
-        // Заголовок
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Кнопка Назад
             AnimatedVisibility(
                 visible = !uiState.isActionMode,
                 enter = fadeIn() + slideInHorizontally { -it },
@@ -82,7 +82,6 @@ fun AiAssistantSheetContent(
                 Spacer(Modifier.width(4.dp))
             }
 
-            // заголовок
             AnimatedContent(
                 targetState = uiState.isActionMode,
                 modifier = Modifier.weight(1f),
@@ -99,7 +98,6 @@ fun AiAssistantSheetContent(
                 )
             }
 
-            // Правая кнопка
             AnimatedContent(
                 targetState = uiState.isActionMode to uiState.chatMessages.isNotEmpty(),
                 transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
@@ -132,7 +130,6 @@ fun AiAssistantSheetContent(
             }
         }
 
-        // Превью текста
         AnimatedVisibility(
             visible = uiState.isActionMode,
             enter = fadeIn(tween(300)) + expandVertically(tween(300)),
@@ -170,7 +167,6 @@ fun AiAssistantSheetContent(
             }
         }
 
-        // Ошибка
         AnimatedVisibility(
             visible = uiState.aiError != null,
             enter = fadeIn() + expandVertically(),
@@ -202,16 +198,13 @@ fun AiAssistantSheetContent(
             }
         }
 
-        // Основной контент
         AnimatedContent(
             targetState = uiState.isActionMode,
             transitionSpec = {
                 if (targetState) {
-                    // Переход к действиям (назад) — входим слева
                     (slideInHorizontally(tween(320)) { -it / 4 } + fadeIn(tween(320))) togetherWith
                             (slideOutHorizontally(tween(280)) { it / 4 } + fadeOut(tween(280)))
                 } else {
-                    // Переход к чату (вперёд) — входим справа
                     (slideInHorizontally(tween(320)) { it / 4 } + fadeIn(tween(320))) togetherWith
                             (slideOutHorizontally(tween(280)) { -it / 4 } + fadeOut(tween(280)))
                 }
@@ -219,7 +212,6 @@ fun AiAssistantSheetContent(
             label = "mode_transition"
         ) { isActions ->
             if (isActions) {
-                //Режим быстрых действий
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = "Что сделать с текстом?",
@@ -228,30 +220,21 @@ fun AiAssistantSheetContent(
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                     AiActionRow(
-                        "Объяснить",
-                        "Простыми словами",
-                        Icons.Default.Lightbulb
+                        "Объяснить", "Простыми словами", Icons.Default.Lightbulb
                     ) { onActionClick("explain") }
                     AiActionRow(
-                        "Пересказать",
-                        "Краткое содержание",
-                        Icons.Default.Summarize
+                        "Пересказать", "Краткое содержание", Icons.Default.Summarize
                     ) { onActionClick("summary") }
                     AiActionRow(
-                        "Создать тест",
-                        "Проверь понимание",
-                        Icons.Default.Quiz
+                        "Создать тест", "Проверь понимание", Icons.Default.Quiz
                     ) { onActionClick("quiz") }
                     Spacer(Modifier.height(4.dp))
                 }
             } else {
-                // Режим чата
-                Column {
+                Column(modifier = Modifier.fillMaxWidth().height(chatHeight)) {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 200.dp, max = 420.dp),
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(bottom = 4.dp)
                     ) {
@@ -290,14 +273,11 @@ fun AiAssistantSheetContent(
                             modifier = Modifier.size(52.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
-                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(
-                                    alpha = 0.1f
-                                )
+                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                             )
                         ) {
                             Icon(
-                                Icons.AutoMirrored.Filled.Send,
-                                null,
+                                Icons.AutoMirrored.Filled.Send, null,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -324,32 +304,23 @@ fun AiActionRow(title: String, subtitle: String = "", icon: ImageVector, onClick
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)
-                    ),
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    icon,
-                    null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
+                Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 if (subtitle.isNotBlank()) {
                     Text(
-                        subtitle,
-                        fontSize = 12.sp,
+                        subtitle, fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }
             }
             Icon(
-                Icons.Default.ChevronRight,
-                null,
+                Icons.Default.ChevronRight, null,
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                 modifier = Modifier.size(18.dp)
             )

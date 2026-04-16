@@ -1,6 +1,5 @@
 package com.example.aibookreader.domain.usecase
 
-import androidx.room.Query
 import com.example.aibookreader.domain.model.Book
 import com.example.aibookreader.domain.repository.BookRepository
 import kotlinx.coroutines.flow.Flow

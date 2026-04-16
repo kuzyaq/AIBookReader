@@ -2,29 +2,28 @@ package com.example.aibookreader.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import com.example.aibookreader.presentation.screens.addbook.AddBookScreen
 import com.example.aibookreader.presentation.screens.auth.login.LoginScreen
 import com.example.aibookreader.presentation.screens.auth.register.RegisterScreen
 import com.example.aibookreader.presentation.screens.home.HomeScreen
-import com.example.aibookreader.presentation.screens.reader.ReaderScreen
+import com.example.aibookreader.presentation.screens.reader.ReadiumReaderActivity
 import com.example.aibookreader.presentation.screens.splash.SplashScreen
 
 
 sealed class Screen(val route: String) {
 
-    object Splash: Screen("splash")
+    object Splash : Screen("splash")
 
-    object Login: Screen("login")
-    object Register: Screen("register")
+    object Login : Screen("login")
+    object Register : Screen("register")
 
-    object Home: Screen("home")
-    object AddBook: Screen("add_book")
-    object Profile: Screen("profile")
+    object Home : Screen("home")
+    object AddBook : Screen("add_book")
+    object Profile : Screen("profile")
 
     object Reader : Screen("reader/{bookId}") {
         fun createRoute(bookId: Int) = "reader/$bookId"
@@ -41,11 +40,16 @@ fun AppNavigation(
         startDestination = Screen.Splash.route,
         modifier = modifier
     ) {
-        composable(Screen.Splash.route){
+        composable(Screen.Splash.route) {
             SplashScreen(
-                onFinished = {
-                    navController.navigate(Screen.Home.route){
-                        popUpTo(Screen.Splash.route){ inclusive = true }
+                onNavigateHome = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
+                },
+                onNavigateLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 }
             )
@@ -53,7 +57,7 @@ fun AppNavigation(
 
         composable(Screen.Login.route) {
             LoginScreen(
-                onLoginSuccess   = {
+                onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
@@ -68,7 +72,7 @@ fun AppNavigation(
             RegisterScreen(
                 onRegisterSuccess = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Register.route) { inclusive = true }
+                        popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
                 onNavigateToLogin = { navController.popBackStack() }
@@ -76,28 +80,21 @@ fun AppNavigation(
         }
 
         composable(Screen.Home.route) {
+            val context = LocalContext.current
             HomeScreen(
                 onBookClick = { bookId ->
-                    navController.navigate(Screen.Reader.createRoute(bookId))
+                    context.startActivity(ReadiumReaderActivity.createIntent(context, bookId))
                 },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
             )
         }
 
         composable(Screen.AddBook.route) {
             AddBookScreen()
-        }
-
-        composable(
-            route = Screen.Reader.route,
-            arguments = listOf(
-                navArgument("bookId") { type = NavType.IntType }
-            )
-        ) { backStackEntry ->
-            val bookId = backStackEntry.arguments?.getInt("bookId") ?: return@composable
-            ReaderScreen(
-                bookId = bookId,  // Передаем bookId
-                onNavigateBack = { navController.popBackStack() }
-            )
         }
     }
 }

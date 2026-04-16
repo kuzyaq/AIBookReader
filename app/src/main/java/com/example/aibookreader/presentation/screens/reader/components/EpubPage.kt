@@ -15,17 +15,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.aibookreader.domain.model.ReaderBlock
+import com.example.aibookreader.domain.model.ReaderSettings
 import com.example.aibookreader.presentation.screens.reader.views.SelectableTextView
-import kotlin.collections.forEach
 
 @Composable
 fun EpubPage(
     blocks: List<ReaderBlock>,
+    settings: ReaderSettings = ReaderSettings(),
     onTap: () -> Unit = {},
     onAiSelected: (String) -> Unit,
     selectionKey: Int = 0
 ) {
     val scroll = rememberScrollState()
+
+    val bodyFontSize = settings.fontSize.sp
+    val titleFontSize = settings.titleFontSize.sp
+    val bodyLineHeight = (settings.fontSize * settings.lineHeightMultiplier).sp
+    val titleLineHeight = (settings.titleFontSize * settings.lineHeightMultiplier).sp
+    val paragraphPadding = settings.paragraphSpacing.dp
 
     key(selectionKey) {
         Column(
@@ -40,29 +47,30 @@ fun EpubPage(
                         text = block.text,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 28.sp
+                            fontSize = titleFontSize,
+                            lineHeight = titleLineHeight
                         ),
                         color = MaterialTheme.colorScheme.onBackground,
-                        fontSize = 28.sp,
+                        fontSize = titleFontSize,
+                        lineHeight = titleLineHeight,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = paragraphPadding),
                         onAiSelected = onAiSelected
                     )
 
                     is ReaderBlock.Paragraph -> SelectableTextView(
                         text = block.text,
                         style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = 18.sp,
-                            lineHeight = 28.sp,
-                            letterSpacing = 0.3.sp
+                            fontSize = bodyFontSize,
+                            lineHeight = bodyLineHeight
                         ),
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
-                        fontSize = 18.sp,
-                        lineHeight = 28.sp,
+                        fontSize = bodyFontSize,
+                        lineHeight = bodyLineHeight,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = paragraphPadding),
                         onAiSelected = onAiSelected
                     )
 
@@ -71,17 +79,21 @@ fun EpubPage(
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = paragraphPadding)
                     )
 
                     is ReaderBlock.Quote -> SelectableTextView(
                         text = block.text,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = (settings.fontSize - 2f).sp,
+                            lineHeight = ((settings.fontSize - 2f) * settings.lineHeightMultiplier).sp
+                        ),
                         color = MaterialTheme.colorScheme.onBackground,
-                        fontSize = 16.sp,
+                        fontSize = (settings.fontSize - 2f).sp,
+                        lineHeight = ((settings.fontSize - 2f) * settings.lineHeightMultiplier).sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = paragraphPadding),
                         onAiSelected = onAiSelected
                     )
                 }

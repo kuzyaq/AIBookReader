@@ -1,9 +1,10 @@
 package com.example.aibookreader.domain.repository
 
 import com.example.aibookreader.domain.model.Book
+import com.example.aibookreader.domain.model.BookFormat
 import kotlinx.coroutines.flow.Flow
 
-interface BookRepository{
+interface BookRepository {
 
     fun getAllBooks(): Flow<List<Book>>
 
@@ -21,7 +22,8 @@ interface BookRepository{
     suspend fun markImportFailed(filePath: String)
 
     suspend fun createImportPlaceholder(
-        filePath: String, fileSize: Long
+        filePath: String,
+        fileSize: Long
     )
 
     suspend fun finishImport(
@@ -31,8 +33,12 @@ interface BookRepository{
         author: String,
         cover: String?,
         pages: Int,
-        fullText: String?
-    ) : Int
+        extractedDir: String? = null,
+        opfBasePath: String? = null,
+        format: BookFormat
+    ): Int
 
     suspend fun updateReadingProgress(bookId: Int, page: Int): Result<Unit>
+
+    suspend fun saveLocator(bookId: Int, locatorJson: String?)
 }

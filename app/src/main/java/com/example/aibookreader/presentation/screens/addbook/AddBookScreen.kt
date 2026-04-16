@@ -25,6 +25,26 @@ import java.io.File
 fun AddBookScreen(viewModel: AddBookViewModel = hiltViewModel()) {
     val context = LocalContext.current
     var selectedSection by remember { mutableIntStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.importEvents.collect { event ->
+            when (event) {
+                is ImportEvent.Started -> snackbarHostState.showSnackbar(
+                    message = "Импорт книги начался...",
+                    duration = SnackbarDuration.Short
+                )
+                is ImportEvent.Success -> snackbarHostState.showSnackbar(
+                    message = "Книга успешно импортирована!",
+                    duration = SnackbarDuration.Short
+                )
+                is ImportEvent.Error -> snackbarHostState.showSnackbar(
+                    message = "Ошибка импорта: ${event.message}",
+                    duration = SnackbarDuration.Long
+                )
+            }
+        }
+    }
 
     val pickBookLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -39,6 +59,7 @@ fun AddBookScreen(viewModel: AddBookViewModel = hiltViewModel()) {
         copyUriToCache(uri, context)?.let { viewModel.importBook(it) }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
 
         // Сегментированные кнопки
@@ -79,6 +100,11 @@ fun AddBookScreen(viewModel: AddBookViewModel = hiltViewModel()) {
 
             1 -> ServerBooksSection()
         }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
     }
 }
 

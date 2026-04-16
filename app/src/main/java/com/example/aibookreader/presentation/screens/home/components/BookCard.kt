@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.aibookreader.data.local.entity.BookStatus
+import com.example.aibookreader.domain.model.BookStatus
 import com.example.aibookreader.domain.model.Book
 import com.valentinilk.shimmer.shimmer
 

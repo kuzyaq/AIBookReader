@@ -1,18 +1,23 @@
 package com.example.aibookreader.data.local.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Query
+import androidx.room.Upsert
 import com.example.aibookreader.data.local.entity.ReadingProgressEntity
-
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReadingProgressDao {
 
-    @Query("SELECT * FROM reading_progress WHERE bookId = :bookId ORDER BY lastReadAt DESC LIMIT 1")
-    suspend fun getLatestProgress(bookId: Int): ReadingProgressEntity?
+    @Query("SELECT * FROM reading_progress WHERE bookId = :bookId")
+    suspend fun getByBookId(bookId: Int): ReadingProgressEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertProgress(progressEntity: ReadingProgressEntity)
+    @Query("SELECT * FROM reading_progress")
+    fun observeAll(): Flow<List<ReadingProgressEntity>>
+
+    @Upsert
+    suspend fun upsert(entity: ReadingProgressEntity)
 
     @Query("DELETE FROM reading_progress WHERE bookId = :bookId")
-    suspend fun deleteProgressForBook(bookId: Int)
+    suspend fun deleteForBook(bookId: Int)
 }

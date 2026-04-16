@@ -2,7 +2,8 @@ package com.example.aibookreader.data.local.dao
 
 import androidx.room.*
 import com.example.aibookreader.data.local.entity.BookEntity
-import com.example.aibookreader.data.local.entity.BookStatus
+import com.example.aibookreader.domain.model.BookFormat
+import com.example.aibookreader.domain.model.BookStatus
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -29,26 +30,34 @@ interface BookDao {
     @Query("UPDATE books SET status = :status WHERE filePath = :filePath")
     suspend fun updateStatus(filePath: String, status: BookStatus)
 
-    @Query("""
-        UPDATE books 
-    SET title = :title, 
-        author = :author, 
-        filePath = :newPath, 
-        coverImage = :cover, 
-        totalPages = :pages, 
-        fullText = :text, 
-        status = :status 
-    WHERE filePath = :originalPath
-    """)
+    @Query(
+        """
+        UPDATE books
+        SET title = :title,
+            author = :author,
+            filePath = :newPath,
+            coverImage = :cover,
+            totalPages = :pages,
+            status = :status,
+            extractedDir = :extractedDir,
+            opfBasePath = :opfBasePath,
+            fileSize = :fileSize,
+            format = :format
+        WHERE filePath = :originalPath
+        """
+    )
     suspend fun finishImport(
-        originalPath: String, // Старый путь из кэша (используется как ID для поиска)
-        newPath: String,    // Новый путь в filesDir (записывается в базу)
+        originalPath: String,
+        newPath: String,
         title: String,
         author: String,
         cover: String?,
         pages: Int,
-        text: String?,
-        status: BookStatus
+        status: BookStatus,
+        extractedDir: String? = null,
+        opfBasePath: String? = null,
+        fileSize: Long,
+        format: BookFormat
     )
 
     @Delete
@@ -57,6 +66,6 @@ interface BookDao {
     @Query("DELETE FROM books WHERE id = :id")
     suspend fun deleteBookById(id: Int)
 
-    @Query("UPDATE books SET currentPage = :page, lastReadAt = :timestamp WHERE id = :bookId")
-    suspend fun updateReadingProgress(bookId: Int, page: Int, timestamp: Long = System.currentTimeMillis())
+    @Query("UPDATE books SET lastReadAt = :timestamp WHERE id = :bookId")
+    suspend fun updateLastReadAt(bookId: Int, timestamp: Long = System.currentTimeMillis())
 }

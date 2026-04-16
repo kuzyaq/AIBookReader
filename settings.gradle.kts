@@ -31,4 +31,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "AIBookReader"
 include(":app")
+include(":server")
  

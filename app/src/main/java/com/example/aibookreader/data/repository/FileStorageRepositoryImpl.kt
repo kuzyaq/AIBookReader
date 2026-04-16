@@ -29,7 +29,11 @@ class FileStorageRepositoryImpl @Inject constructor(
     override suspend fun copyBookToInternal(uriString: String): String {
         val sourceUri = uriString.toUri()
 
-        val fileName = "book_${System.currentTimeMillis()}.epub"
+        val ext = when {
+            uriString.endsWith(".pdf", ignoreCase = true) -> "pdf"
+            else -> "epub"
+        }
+        val fileName = "book_${System.currentTimeMillis()}.$ext"
         val destFile = File(context.filesDir, fileName)
 
 
