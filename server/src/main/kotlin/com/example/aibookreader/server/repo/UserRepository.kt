@@ -12,6 +12,7 @@ import java.util.UUID
 data class UserRow(
     val id: UUID,
     val email: String,
+    val displayName: String?,
     val passwordHash: String
 )
 
@@ -34,6 +35,7 @@ class UserRepository {
                 UserRow(
                     id = row[Users.id].value,
                     email = row[Users.email],
+                    displayName = row[Users.displayName],
                     passwordHash = row[Users.passwordHash]
                 )
             }
@@ -47,6 +49,7 @@ class UserRepository {
                 UserRow(
                     id = row[Users.id].value,
                     email = row[Users.email],
+                    displayName = row[Users.displayName],
                     passwordHash = row[Users.passwordHash]
                 )
             }
@@ -54,6 +57,15 @@ class UserRepository {
     }
 
     fun existsByEmail(email: String): Boolean = findByEmail(email) != null
+
+    fun updateDisplayName(userId: UUID, displayName: String?) {
+        transaction {
+            Users.update({ Users.id eq userId }) {
+                it[Users.displayName] = displayName
+                it[updatedAt] = OffsetDateTime.now()
+            }
+        }
+    }
 
     fun touchUpdatedAt(userId: UUID) {
         transaction {

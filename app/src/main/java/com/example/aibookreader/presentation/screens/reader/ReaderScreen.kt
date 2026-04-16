@@ -172,7 +172,8 @@ fun ReaderScreen(
                             onSendMessage = { viewModel.sendChatMessage(it) },
                             onClearHistory = { viewModel.clearChatHistory() },
                             onSwitchToChat = { viewModel.switchToChat() },
-                            onSwitchToActions = { viewModel.switchToActions() }
+                            onSwitchToActions = { viewModel.switchToActions() },
+                            onRetryAi = { viewModel.retryLastAiRequest() }
                         )
                     }
                 }

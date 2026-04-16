@@ -79,13 +79,22 @@ fun HomeScreen(
                 TAB_LIBRARY -> HomeTopBar(
                     title = "Моя библиотека",
                     icon = Icons.Filled.MenuBook,
+                    showSearchButton = true,
                     isSearchActive = state.isSearchActive,
                     searchQuery = state.searchQuery,
                     onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
                     onToggleSearch = { viewModel.toggleSearch() }
                 )
-                TAB_ADD -> HomeTopBar(title = "Добавить книгу", icon = Icons.Filled.AddCircle)
-                TAB_PROFILE -> HomeTopBar(title = "Профиль", icon = Icons.Filled.AccountCircle)
+                TAB_ADD -> HomeTopBar(
+                    title = "Добавить книгу",
+                    icon = Icons.Filled.AddCircle,
+                    showSearchButton = false
+                )
+                TAB_PROFILE -> HomeTopBar(
+                    title = "Профиль",
+                    icon = Icons.Filled.AccountCircle,
+                    showSearchButton = false
+                )
             }
         },
         bottomBar = {

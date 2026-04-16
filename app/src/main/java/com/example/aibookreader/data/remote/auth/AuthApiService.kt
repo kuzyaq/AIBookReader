@@ -2,6 +2,7 @@ package com.example.aibookreader.data.remote.auth
 
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 
 interface AuthApiService {
@@ -17,4 +18,7 @@ interface AuthApiService {
 
     @GET("users/me")
     suspend fun getMe(): UserResponseDto
+
+    @PATCH("users/me")
+    suspend fun updateProfile(@Body body: UpdateProfileRequestDto): UserResponseDto
 }

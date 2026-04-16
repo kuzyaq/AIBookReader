@@ -315,6 +315,7 @@ class ReadiumReaderActivity : FragmentActivity() {
                                         isSheetOpen = state.isSheetOpen,
                                         isAiLoading = state.isAiLoading,
                                         aiError = state.aiError,
+                                        aiChatError = state.aiChatError,
                                         chatMessages = state.chatMessages,
                                         isActionMode = state.isActionMode
                                     ),
@@ -322,7 +323,8 @@ class ReadiumReaderActivity : FragmentActivity() {
                                     onSendMessage = { viewModel.sendChatMessage(it) },
                                     onClearHistory = { viewModel.clearChatHistory() },
                                     onSwitchToChat = { viewModel.switchToChat() },
-                                    onSwitchToActions = { viewModel.switchToActions() }
+                                    onSwitchToActions = { viewModel.switchToActions() },
+                                    onRetryAi = { viewModel.retryLastAiRequest() }
                                 )
                             }
                         }

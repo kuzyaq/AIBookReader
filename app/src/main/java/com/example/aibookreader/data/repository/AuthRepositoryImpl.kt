@@ -6,6 +6,7 @@ import com.example.aibookreader.data.remote.auth.AuthApiService
 import com.example.aibookreader.data.remote.auth.ErrorResponseDto
 import com.example.aibookreader.data.remote.auth.LoginRequestDto
 import com.example.aibookreader.data.remote.auth.RegisterRequestDto
+import com.example.aibookreader.data.remote.auth.UpdateProfileRequestDto
 import com.example.aibookreader.data.remote.auth.TokenRefresher
 import com.google.gson.Gson
 import com.example.aibookreader.domain.model.AuthUser
@@ -87,9 +88,25 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateDisplayName(displayName: String): Result<Unit> {
+        return try {
+            val trimmed = displayName.trim()
+            val body = UpdateProfileRequestDto(
+                displayName = trimmed.takeIf { it.isNotEmpty() }
+            )
+            val me = authedApi.updateProfile(body)
+            _currentUser.value = AuthUser(id = me.id, email = me.email, displayName = me.displayName)
+            Result.success(Unit)
+        } catch (e: HttpException) {
+            Result.failure(Exception(httpErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(Exception(networkOrUnknownMessage(e), e))
+        }
+    }
+
     private suspend fun loadProfile() {
         val me = authedApi.getMe()
-        _currentUser.value = AuthUser(id = me.id, email = me.email)
+        _currentUser.value = AuthUser(id = me.id, email = me.email, displayName = me.displayName)
     }
 
     private suspend fun persistTokens(access: String, refresh: String) {

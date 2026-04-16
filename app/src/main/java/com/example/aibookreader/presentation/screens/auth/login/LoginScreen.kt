@@ -184,7 +184,7 @@ fun LoginScreen(
                             .height(52.dp),
                         enabled = !uiState.isLoading &&
                             email.isNotBlank() &&
-                            password.isNotBlank(),
+                            password.length >= 8,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,

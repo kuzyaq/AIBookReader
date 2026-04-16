@@ -12,6 +12,7 @@ import com.example.aibookreader.data.local.dao.ReadingProgressDao
 import com.example.aibookreader.data.local.entity.BookEntity
 import com.example.aibookreader.data.local.entity.ChapterEntity
 import com.example.aibookreader.data.local.entity.ChatMessageEntity
+import com.example.aibookreader.data.local.entity.PendingAiRetryEntity
 import com.example.aibookreader.data.local.entity.ReaderBlockEntity
 import com.example.aibookreader.data.local.entity.ReadingProgressEntity
 
@@ -22,9 +23,10 @@ import com.example.aibookreader.data.local.entity.ReadingProgressEntity
         ReadingProgressEntity::class,
         ReaderBlockEntity::class,
         ChatMessageEntity::class,
-        ChapterEntity::class
+        ChapterEntity::class,
+        PendingAiRetryEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)

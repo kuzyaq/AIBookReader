@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aibookreader.domain.model.ReaderBlock
 import com.example.aibookreader.domain.model.ReaderSettings
+import com.example.aibookreader.domain.repository.AiRepository
 import com.example.aibookreader.domain.repository.ReaderRepository
 import com.example.aibookreader.domain.usecase.ClearChatHistoryUseCase
 import com.example.aibookreader.domain.usecase.GetBookByIdUseCase
@@ -15,10 +16,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import javax.inject.Inject
 
@@ -30,6 +33,7 @@ class ReaderViewModel @Inject constructor(
     private val sendAiRequestUseCase: SendAiRequestUseCase,
     private val getChatHistoryUseCase: GetChatHistoryUseCase,
     private val clearChatHistoryUseCase: ClearChatHistoryUseCase,
+    private val aiRepository: AiRepository,
     private val readerRepository: ReaderRepository
 ) : ViewModel() {
 
@@ -40,13 +44,27 @@ class ReaderViewModel @Inject constructor(
     private val pageCache = mutableMapOf<Int, List<ReaderBlock>>()
     private val MAX_CACHE_SIZE = 10
 
+    private val aiSendMutex = Mutex()
+
+    private var chatSyncJob: Job? = null
+
     fun openBook(bookId: Int) {
         if (currentBookId == bookId) return
+        chatSyncJob?.cancel()
         currentBookId = bookId
 
-        getChatHistoryUseCase(bookId)
-            .onEach { msgs -> _uiState.update { it.copy(chatMessages = msgs) } }
-            .launchIn(viewModelScope)
+        chatSyncJob = combine(
+            getChatHistoryUseCase(bookId),
+            aiRepository.observePendingFailure(bookId)
+        ) { msgs, pending ->
+            val err = pending?.let { p ->
+                AiChatErrorUi(
+                    message = p.errorMessage,
+                    retry = PendingAiRetry(prompt = p.prompt, userMessage = p.userMessage)
+                )
+            }
+            _uiState.update { s -> s.copy(chatMessages = msgs, aiChatError = err) }
+        }.launchIn(viewModelScope)
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -196,7 +214,16 @@ class ReaderViewModel @Inject constructor(
     fun resetReaderSettings() { _uiState.update { it.copy(readerSettings = ReaderSettings()) } }
 
     fun setSelectedText(text: String) {
-        _uiState.update { it.copy(selectedText = text, isSheetOpen = true, aiError = null, isActionMode = true) }
+        val bookId = currentBookId ?: return
+        viewModelScope.launch { aiRepository.clearPendingFailure(bookId) }
+        _uiState.update {
+            it.copy(
+                selectedText = text,
+                isSheetOpen = true,
+                aiError = null,
+                isActionMode = true
+            )
+        }
     }
 
     fun openAiFromBottomBar() {
@@ -205,38 +232,111 @@ class ReaderViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 selectedText = it.selectedText ?: pageText.ifBlank { null },
-                isSheetOpen = true, isActionMode = msgs.isEmpty(), aiError = null
+                isSheetOpen = true,
+                isActionMode = msgs.isEmpty(),
+                aiError = null
             )
         }
     }
 
     fun switchToChat() { _uiState.update { it.copy(isActionMode = false) } }
     fun switchToActions() { _uiState.update { it.copy(isActionMode = true) } }
-    fun closeSheet() { _uiState.update { it.copy(isSheetOpen = false, selectionKey = it.selectionKey + 1) } }
+    fun closeSheet() {
+        _uiState.update {
+            it.copy(isSheetOpen = false, selectionKey = it.selectionKey + 1)
+        }
+    }
 
     fun onAiActionClick(action: String) {
         val bookId = currentBookId ?: return
         val sel = _uiState.value.selectedText ?: return
         val ctx = getCurrentPageText()
+        val (userMessage, prompt) = sendAiRequestUseCase.buildPrompt(action, sel, ctx)
         viewModelScope.launch {
-            _uiState.update { it.copy(isAiLoading = true, aiError = null, isActionMode = false) }
-            sendAiRequestUseCase(bookId, action, sel, ctx).fold(
-                onSuccess = { _uiState.update { it.copy(isAiLoading = false, isActionMode = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isAiLoading = false, aiError = formatError(e)) } }
-            )
+            if (!aiSendMutex.tryLock()) return@launch
+            try {
+                _uiState.update {
+                    it.copy(
+                        isAiLoading = true,
+                        aiError = null,
+                        isActionMode = false
+                    )
+                }
+                sendAiRequestUseCase.execute(bookId, prompt, userMessage, true).fold(
+                    onSuccess = { _uiState.update { s -> s.copy(isAiLoading = false) } },
+                    onFailure = { e ->
+                        aiRepository.savePendingFailure(
+                            bookId,
+                            prompt,
+                            userMessage,
+                            AiErrorMessages.format(e)
+                        )
+                        _uiState.update { s -> s.copy(isAiLoading = false) }
+                    }
+                )
+            } finally {
+                aiSendMutex.unlock()
+            }
         }
     }
 
     fun sendChatMessage(message: String) {
         val bookId = currentBookId ?: return
+        val trimmed = message.trim()
+        if (trimmed.isEmpty()) return
         val sel = _uiState.value.selectedText ?: ""
         val ctx = getCurrentPageText()
+        val (userMessage, prompt) = sendAiRequestUseCase.buildPrompt(trimmed, sel, ctx)
         viewModelScope.launch {
-            _uiState.update { it.copy(isAiLoading = true, aiError = null, isActionMode = false) }
-            sendAiRequestUseCase(bookId, message, sel, ctx).fold(
-                onSuccess = { _uiState.update { it.copy(isAiLoading = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isAiLoading = false, aiError = formatError(e)) } }
-            )
+            if (!aiSendMutex.tryLock()) return@launch
+            try {
+                _uiState.update {
+                    it.copy(
+                        isAiLoading = true,
+                        aiError = null,
+                        isActionMode = false
+                    )
+                }
+                sendAiRequestUseCase.execute(bookId, prompt, userMessage, true).fold(
+                    onSuccess = { _uiState.update { s -> s.copy(isAiLoading = false) } },
+                    onFailure = { e ->
+                        aiRepository.savePendingFailure(
+                            bookId,
+                            prompt,
+                            userMessage,
+                            AiErrorMessages.format(e)
+                        )
+                        _uiState.update { s -> s.copy(isAiLoading = false) }
+                    }
+                )
+            } finally {
+                aiSendMutex.unlock()
+            }
+        }
+    }
+
+    fun retryLastAiRequest() {
+        val bookId = currentBookId ?: return
+        val retry = _uiState.value.aiChatError?.retry ?: return
+        viewModelScope.launch {
+            if (!aiSendMutex.tryLock()) return@launch
+            try {
+                _uiState.update { it.copy(isAiLoading = true, aiError = null) }
+                sendAiRequestUseCase.execute(bookId, retry.prompt, retry.userMessage, false).fold(
+                    onSuccess = { _uiState.update { s -> s.copy(isAiLoading = false) } },
+                    onFailure = { e ->
+                        aiRepository.savePendingFailure(
+                            bookId,
+                            retry.prompt,
+                            retry.userMessage,
+                            AiErrorMessages.format(e)
+                        )
+                        _uiState.update { s -> s.copy(isAiLoading = false) }
+                    }
+                )
+            } finally {
+                aiSendMutex.unlock()
+            }
         }
     }
 
@@ -267,11 +367,4 @@ class ReaderViewModel @Inject constructor(
         }.trim()
     }
 
-    private fun formatError(e: Throwable): String = when {
-        e.message?.contains("Unable to resolve host") == true -> "Нет подключения к интернету."
-        e.message?.contains("401") == true -> "Неверный API-ключ."
-        e.message?.contains("429") == true -> "Превышен лимит запросов."
-        e.message?.contains("404") == true -> "Модель ИИ не найдена."
-        else -> "Ошибка: ${e.localizedMessage}"
-    }
 }

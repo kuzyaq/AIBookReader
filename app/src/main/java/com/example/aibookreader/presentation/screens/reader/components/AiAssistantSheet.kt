@@ -1,13 +1,28 @@
 package com.example.aibookreader.presentation.screens.reader.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -17,16 +32,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aibookreader.domain.model.ChatMessage
+import com.example.aibookreader.presentation.screens.reader.AiChatErrorUi
 import com.example.aibookreader.presentation.screens.reader.ReaderUiState
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AiAssistantSheetContent(
     uiState: ReaderUiState,
@@ -34,19 +58,50 @@ fun AiAssistantSheetContent(
     onSendMessage: (String) -> Unit,
     onClearHistory: () -> Unit,
     onSwitchToChat: () -> Unit = {},
-    onSwitchToActions: () -> Unit = {}
+    onSwitchToActions: () -> Unit = {},
+    onRetryAi: () -> Unit = {}
 ) {
     var chatInput by remember { mutableStateOf("") }
+    var actionPromptInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     val screenHeight = LocalConfiguration.current.screenHeightDp
     val chatHeight = (screenHeight * 0.55f).dp
 
-    LaunchedEffect(uiState.chatMessages.size, uiState.isAiLoading) {
-        val index = if (uiState.isAiLoading) uiState.chatMessages.size
-        else (uiState.chatMessages.size - 1).coerceAtLeast(0)
-        if (uiState.chatMessages.isNotEmpty() || uiState.isAiLoading) {
-            listState.animateScrollToItem(index)
+    val headerLeadWidth by animateDpAsState(
+        targetValue = if (uiState.isActionMode) 0.dp else 48.dp,
+        animationSpec = tween(280, easing = FastOutSlowInEasing),
+        label = "header_lead"
+    )
+
+    val lastListIndex = remember(
+        uiState.chatMessages.size,
+        uiState.aiChatError,
+        uiState.isAiLoading
+    ) {
+        val err = if (uiState.aiChatError != null) 1 else 0
+        val typing = if (uiState.isAiLoading) 1 else 0
+        uiState.chatMessages.size + err + typing - 1
+    }
+
+    LaunchedEffect(uiState.chatMessages.size, uiState.aiChatError, uiState.isAiLoading) {
+        if (lastListIndex >= 0) {
+            listState.animateScrollToItem(lastListIndex)
+        }
+    }
+
+    fun sendFromChatField() {
+        if (chatInput.isNotBlank() && !uiState.isAiLoading) {
+            onSendMessage(chatInput)
+            chatInput = ""
+        }
+    }
+
+    fun sendFromActionField() {
+        if (actionPromptInput.isNotBlank() && !uiState.isAiLoading) {
+            onSendMessage(actionPromptInput)
+            actionPromptInput = ""
         }
     }
 
@@ -64,68 +119,109 @@ fun AiAssistantSheetContent(
                 .padding(bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AnimatedVisibility(
-                visible = !uiState.isActionMode,
-                enter = fadeIn() + slideInHorizontally { -it },
-                exit = fadeOut() + slideOutHorizontally { -it }
+            Box(
+                modifier = Modifier.width(headerLeadWidth),
+                contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onSwitchToActions,
-                    modifier = Modifier.size(36.dp)
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !uiState.isActionMode,
+                    enter = fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)),
+                    exit = fadeOut(animationSpec = tween(220))
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад к действиям",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                    IconButton(
+                        onClick = onSwitchToActions,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад к действиям",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
-                Spacer(Modifier.width(4.dp))
             }
 
             AnimatedContent(
                 targetState = uiState.isActionMode,
                 modifier = Modifier.weight(1f),
                 transitionSpec = {
-                    (fadeIn(tween(300)) + slideInVertically { -it / 2 }) togetherWith
-                            (fadeOut(tween(200)) + slideOutVertically { it / 2 })
+                    val enterDur = 340
+                    val exitDur = 280
+                    val frac = 5
+                    if (targetState) {
+                        (
+                            slideInHorizontally(
+                                tween(enterDur, easing = FastOutSlowInEasing)
+                            ) { -it / frac } + fadeIn(tween(enterDur, easing = FastOutSlowInEasing))
+                            ) togetherWith (
+                            slideOutHorizontally(
+                                tween(exitDur, easing = LinearOutSlowInEasing)
+                            ) { it / frac } + fadeOut(tween(exitDur, easing = LinearOutSlowInEasing))
+                            )
+                    } else {
+                        (
+                            slideInHorizontally(
+                                tween(enterDur, easing = FastOutSlowInEasing)
+                            ) { it / frac } + fadeIn(tween(enterDur, easing = FastOutSlowInEasing))
+                            ) togetherWith (
+                            slideOutHorizontally(
+                                tween(exitDur, easing = LinearOutSlowInEasing)
+                            ) { -it / frac } + fadeOut(tween(exitDur, easing = LinearOutSlowInEasing))
+                            )
+                    }
                 },
                 label = "header_title"
             ) { isActions ->
                 Text(
                     text = if (isActions) "Анализ текста" else "Чат с ИИ",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            AnimatedContent(
-                targetState = uiState.isActionMode to uiState.chatMessages.isNotEmpty(),
-                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                label = "header_action"
-            ) { (isActions, hasMessages) ->
-                when {
-                    isActions && hasMessages -> FilledTonalButton(
-                        onClick = onSwitchToChat,
-                        modifier = Modifier.height(34.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
-                    ) {
-                        Icon(Icons.Default.Chat, null, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("Чат с ИИ", fontSize = 12.sp)
-                    }
-
-                    !isActions && hasMessages -> TextButton(
-                        onClick = onClearHistory,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
+            Box(
+                modifier = Modifier
+                    .widthIn(min = 108.dp)
+                    .height(40.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                AnimatedContent(
+                    targetState = uiState.isActionMode to uiState.chatMessages.isNotEmpty(),
+                    transitionSpec = {
+                        fadeIn(
+                            animationSpec = tween(300, easing = FastOutSlowInEasing)
+                        ) togetherWith fadeOut(
+                            animationSpec = tween(220)
                         )
-                    ) {
-                        Icon(Icons.Default.DeleteOutline, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Очистить", fontSize = 12.sp)
-                    }
+                    },
+                    label = "header_action"
+                ) { (isActions, hasMessages) ->
+                    when {
+                        isActions && hasMessages -> FilledTonalButton(
+                            onClick = onSwitchToChat,
+                            modifier = Modifier.height(34.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Icon(Icons.Default.Chat, null, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Чат с ИИ", fontSize = 12.sp)
+                        }
 
-                    else -> Box(Modifier.size(1.dp))
+                        !isActions && hasMessages -> TextButton(
+                            onClick = onClearHistory,
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(Icons.Default.DeleteOutline, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Очистить", fontSize = 12.sp)
+                        }
+
+                        else -> Spacer(Modifier.size(1.dp))
+                    }
                 }
             }
         }
@@ -167,52 +263,36 @@ fun AiAssistantSheetContent(
             }
         }
 
-        AnimatedVisibility(
-            visible = uiState.aiError != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            uiState.aiError?.let { error ->
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.ErrorOutline, null,
-                            tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            error, color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-        }
-
         AnimatedContent(
             targetState = uiState.isActionMode,
             transitionSpec = {
+                val enterSlide = 14
+                val exitSlide = 12
                 if (targetState) {
-                    (slideInHorizontally(tween(320)) { -it / 4 } + fadeIn(tween(320))) togetherWith
-                            (slideOutHorizontally(tween(280)) { it / 4 } + fadeOut(tween(280)))
+                    (
+                        fadeIn(tween(420, easing = FastOutSlowInEasing)) +
+                            slideInHorizontally(tween(420, easing = FastOutSlowInEasing)) { -it / enterSlide }
+                        ) togetherWith (
+                        fadeOut(tween(300, easing = LinearOutSlowInEasing)) +
+                            slideOutHorizontally(tween(300, easing = LinearOutSlowInEasing)) { it / exitSlide }
+                        )
                 } else {
-                    (slideInHorizontally(tween(320)) { it / 4 } + fadeIn(tween(320))) togetherWith
-                            (slideOutHorizontally(tween(280)) { -it / 4 } + fadeOut(tween(280)))
+                    (
+                        fadeIn(tween(420, easing = FastOutSlowInEasing)) +
+                            slideInHorizontally(tween(420, easing = FastOutSlowInEasing)) { it / enterSlide }
+                        ) togetherWith (
+                        fadeOut(tween(300, easing = LinearOutSlowInEasing)) +
+                            slideOutHorizontally(tween(300, easing = LinearOutSlowInEasing)) { -it / exitSlide }
+                        )
                 }
             },
             label = "mode_transition"
         ) { isActions ->
             if (isActions) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         text = "Что сделать с текстом?",
                         style = MaterialTheme.typography.labelLarge,
@@ -220,14 +300,57 @@ fun AiAssistantSheetContent(
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                     AiActionRow(
-                        "Объяснить", "Простыми словами", Icons.Default.Lightbulb
+                        "Объяснить", "Простыми словами", Icons.Default.Lightbulb,
+                        enabled = !uiState.isAiLoading
                     ) { onActionClick("explain") }
                     AiActionRow(
-                        "Пересказать", "Краткое содержание", Icons.Default.Summarize
+                        "Пересказать", "Краткое содержание", Icons.Default.Summarize,
+                        enabled = !uiState.isAiLoading
                     ) { onActionClick("summary") }
-                    AiActionRow(
-                        "Создать тест", "Проверь понимание", Icons.Default.Quiz
-                    ) { onActionClick("quiz") }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Свой вопрос ИИ",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                    )
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = actionPromptInput,
+                            onValueChange = { actionPromptInput = it },
+                            placeholder = { Text("Напишите сообщение…", fontSize = 14.sp) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(20.dp),
+                            maxLines = 4,
+                            enabled = !uiState.isAiLoading,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = { sendFromActionField() }),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        FilledIconButton(
+                            onClick = { sendFromActionField() },
+                            enabled = actionPromptInput.isNotBlank() && !uiState.isAiLoading,
+                            modifier = Modifier.size(52.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                            )
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, null, modifier = Modifier.size(20.dp))
+                        }
+                    }
                     Spacer(Modifier.height(4.dp))
                 }
             } else {
@@ -238,11 +361,23 @@ fun AiAssistantSheetContent(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(bottom = 4.dp)
                     ) {
-                        items(items = uiState.chatMessages, key = { it.id }) { msg ->
-                            ChatBubble(message = msg)
+                        items(
+                            items = uiState.chatMessages,
+                            key = { m -> m.id.takeIf { it != 0 } ?: m.timeStamp.hashCode() }
+                        ) { msg ->
+                            ChatBubble(message = msg, context = context)
+                        }
+                        uiState.aiChatError?.let { chatErr ->
+                            item(key = "ai_chat_error") {
+                                AiErrorBubble(
+                                    error = chatErr,
+                                    onRetry = onRetryAi,
+                                    context = context
+                                )
+                            }
                         }
                         if (uiState.isAiLoading) {
-                            item { TypingBubble() }
+                            item(key = "typing") { TypingBubble() }
                         }
                     }
 
@@ -252,23 +387,27 @@ fun AiAssistantSheetContent(
                         OutlinedTextField(
                             value = chatInput,
                             onValueChange = { chatInput = it },
-                            placeholder = { Text("Спросить у ИИ...", fontSize = 14.sp) },
+                            placeholder = { Text("Спросить у ИИ…", fontSize = 14.sp) },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(20.dp),
                             maxLines = 4,
+                            enabled = !uiState.isAiLoading,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = { sendFromChatField() }),
                             colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             )
                         )
                         Spacer(Modifier.width(8.dp))
                         FilledIconButton(
-                            onClick = {
-                                if (chatInput.isNotBlank()) {
-                                    onSendMessage(chatInput)
-                                    chatInput = ""
-                                }
-                            },
+                            onClick = { sendFromChatField() },
                             enabled = chatInput.isNotBlank() && !uiState.isAiLoading,
                             modifier = Modifier.size(52.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
@@ -288,13 +427,78 @@ fun AiAssistantSheetContent(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AiActionRow(title: String, subtitle: String = "", icon: ImageVector, onClick: () -> Unit) {
+fun AiErrorBubble(
+    error: AiChatErrorUi,
+    onRetry: () -> Unit,
+    context: Context
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
+            color = MaterialTheme.colorScheme.errorContainer,
+            tonalElevation = 1.dp,
+            modifier = Modifier
+                .widthIn(max = 300.dp)
+                .combinedClickable(
+                    onClick = onRetry,
+                    onLongClick = {
+                        copyChatText(context, error.message, showToast = true)
+                    }
+                )
+        ) {
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.ErrorOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Не удалось получить ответ",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    error.message,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Нажмите, чтобы повторить",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.75f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AiActionRow(
+    title: String,
+    subtitle: String = "",
+    icon: ImageVector,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
     Surface(
         onClick = onClick,
+        enabled = enabled,
         shape = RoundedCornerShape(14.dp),
         tonalElevation = 0.dp,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -311,11 +515,17 @@ fun AiActionRow(title: String, subtitle: String = "", icon: ImageVector, onClick
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(
+                    title,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 if (subtitle.isNotBlank()) {
                     Text(
-                        subtitle, fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        subtitle,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -328,35 +538,93 @@ fun AiActionRow(title: String, subtitle: String = "", icon: ImageVector, onClick
     }
 }
 
+private fun formatChatTimestamp(epochMs: Long): String {
+    val zone = ZoneId.of("Europe/Moscow")
+    val zdt = Instant.ofEpochMilli(epochMs).atZone(zone)
+    val today = LocalDate.now(zone)
+    val msgDate = zdt.toLocalDate()
+    val hm = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()).format(zdt)
+    return when {
+        msgDate == today -> hm
+        msgDate == today.minusDays(1) -> "Вчера, $hm"
+        else -> DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale.forLanguageTag("ru")).format(zdt)
+    }
+}
+
+private fun copyChatText(context: Context, text: String, showToast: Boolean) {
+    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText("chat", text))
+    if (showToast) {
+        Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatBubble(message: ChatMessage) {
+fun ChatBubble(message: ChatMessage, context: Context) {
     val isUser = message.isUser
+    val timeLabel = formatChatTimestamp(message.timeStamp)
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
     ) {
         if (isUser) {
-            Box(
+            Column(
                 modifier = Modifier
+                    .widthIn(max = 300.dp)
                     .clip(RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp))
                     .background(MaterialTheme.colorScheme.primary)
+                    .combinedClickable(
+                        onClick = { },
+                        onLongClick = {
+                            copyChatText(context, message.message, showToast = true)
+                        }
+                    )
                     .padding(horizontal = 14.dp, vertical = 10.dp)
-                    .widthIn(max = 290.dp)
             ) {
-                Text(message.message, color = Color.White, fontSize = 15.sp, lineHeight = 22.sp)
+                Text(
+                    message.message,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    timeLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f),
+                    modifier = Modifier.align(Alignment.End)
+                )
             }
         } else {
             Surface(
                 shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
-                color = MaterialTheme.colorScheme.inverseSurface,
-                modifier = Modifier.widthIn(max = 290.dp)
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                tonalElevation = 1.dp,
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .combinedClickable(
+                        onClick = { },
+                        onLongClick = {
+                            copyChatText(context, message.message, showToast = true)
+                        }
+                    )
             ) {
-                Text(
-                    message.message,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                    fontSize = 15.sp, lineHeight = 22.sp
-                )
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Text(
+                        message.message,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        timeLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.72f),
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
             }
         }
     }
@@ -367,7 +635,8 @@ fun TypingBubble() {
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         Surface(
             shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
-            color = MaterialTheme.colorScheme.inverseSurface
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            tonalElevation = 1.dp
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
@@ -377,17 +646,18 @@ fun TypingBubble() {
                 repeat(3) { index ->
                     val transition = rememberInfiniteTransition(label = "dot$index")
                     val alpha by transition.animateFloat(
-                        0.3f, 1f,
+                        0.35f, 1f,
                         infiniteRepeatable(
-                            tween(600, delayMillis = index * 200),
+                            tween(650, delayMillis = index * 180),
                             RepeatMode.Reverse
-                        ), "alpha"
+                        ),
+                        label = "alpha"
                     )
                     Box(
                         Modifier
                             .size(8.dp)
                             .background(
-                                MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = alpha),
+                                MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = alpha * 0.55f),
                                 RoundedCornerShape(50)
                             )
                     )

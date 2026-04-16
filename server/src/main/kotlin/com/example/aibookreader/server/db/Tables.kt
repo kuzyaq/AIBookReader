@@ -6,6 +6,7 @@ import org.jetbrains.exposed.sql.javatime.timestampWithTimeZone
 
 object Users : UUIDTable("users") {
     val email = varchar("email", 255)
+    val displayName = varchar("display_name", 255).nullable()
     val passwordHash = varchar("password_hash", 255)
     val createdAt = timestampWithTimeZone("created_at")
     val updatedAt = timestampWithTimeZone("updated_at")

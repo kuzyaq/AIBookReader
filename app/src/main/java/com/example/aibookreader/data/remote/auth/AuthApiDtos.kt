@@ -24,7 +24,12 @@ data class TokenResponseDto(
 
 data class UserResponseDto(
     val id: String,
-    val email: String
+    val email: String,
+    val displayName: String? = null
+)
+
+data class UpdateProfileRequestDto(
+    val displayName: String? = null
 )
 
 data class ErrorResponseDto(

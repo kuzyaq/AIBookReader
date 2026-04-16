@@ -97,4 +97,21 @@ object BookDatabaseMigrations {
             db.execSQL("PRAGMA foreign_keys=1")
         }
     }
+
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `pending_ai_retry` (
+                    `bookId` INTEGER NOT NULL,
+                    `prompt` TEXT NOT NULL,
+                    `userMessage` TEXT NOT NULL,
+                    `errorMessage` TEXT NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`bookId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
 }

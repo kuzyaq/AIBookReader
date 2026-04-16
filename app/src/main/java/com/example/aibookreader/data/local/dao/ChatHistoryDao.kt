@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
 import com.example.aibookreader.data.local.entity.ChatMessageEntity
+import com.example.aibookreader.data.local.entity.PendingAiRetryEntity
 import kotlinx.coroutines.flow.Flow
 
 
@@ -21,6 +22,15 @@ interface ChatHistoryDao {
 
     @Query("SELECT COUNT(*) FROM chat_history WHERE bookId = :bookId")
     suspend fun getMessageCount(bookId: Int): Int
+
+    @Insert(onConflict = REPLACE)
+    suspend fun upsertPendingRetry(entity: PendingAiRetryEntity)
+
+    @Query("SELECT * FROM pending_ai_retry WHERE bookId = :bookId LIMIT 1")
+    fun observePendingRetry(bookId: Int): Flow<PendingAiRetryEntity?>
+
+    @Query("DELETE FROM pending_ai_retry WHERE bookId = :bookId")
+    suspend fun clearPendingRetry(bookId: Int)
 }
 
 

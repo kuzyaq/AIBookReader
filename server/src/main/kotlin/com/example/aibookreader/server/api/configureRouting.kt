@@ -5,6 +5,7 @@ import com.example.aibookreader.server.api.dto.LoginRequest
 import com.example.aibookreader.server.api.dto.RefreshRequest
 import com.example.aibookreader.server.api.dto.RegisterRequest
 import com.example.aibookreader.server.api.dto.TokenResponse
+import com.example.aibookreader.server.api.dto.UpdateProfileRequest
 import com.example.aibookreader.server.api.dto.UserResponse
 import com.example.aibookreader.server.repo.UserRepository
 import io.ktor.http.HttpStatusCode
@@ -15,6 +16,7 @@ import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
+import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.routing.routing
@@ -94,7 +96,38 @@ fun Application.configureRouting(
                 call.respond(
                     UserResponse(
                         id = user.id.toString(),
-                        email = user.email
+                        email = user.email,
+                        displayName = user.displayName
+                    )
+                )
+            }
+
+            patch("/users/me") {
+                val principal = call.principal<AuthUserIdPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Не авторизован"))
+                    return@patch
+                }
+                val body = call.receive<UpdateProfileRequest>()
+                val raw = body.displayName?.trim()
+                val normalized = when {
+                    raw.isNullOrEmpty() -> null
+                    raw.length > 120 -> {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("Имя не длиннее 120 символов"))
+                        return@patch
+                    }
+                    else -> raw
+                }
+                userRepository.updateDisplayName(principal.userId, normalized)
+                val user = userRepository.findById(principal.userId)
+                if (user == null) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("Пользователь не найден"))
+                    return@patch
+                }
+                call.respond(
+                    UserResponse(
+                        id = user.id.toString(),
+                        email = user.email,
+                        displayName = user.displayName
                     )
                 )
             }

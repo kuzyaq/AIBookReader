@@ -16,4 +16,6 @@ interface AuthRepository {
     suspend fun logout()
 
     suspend fun refreshProfile()
+
+    suspend fun updateDisplayName(displayName: String): Result<Unit>
 }

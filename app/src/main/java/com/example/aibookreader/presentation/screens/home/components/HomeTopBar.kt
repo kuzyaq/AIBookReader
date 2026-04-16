@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 fun HomeTopBar(
     title: String = "Моя библиотека",
     icon: ImageVector = Icons.Filled.MenuBook,
+    showSearchButton: Boolean = true,
     isSearchActive: Boolean = false,
     searchQuery: String = "",
     onSearchQueryChange: (String) -> Unit = {},
@@ -103,12 +104,14 @@ fun HomeTopBar(
             }
         },
         actions = {
-            IconButton(onClick = onToggleSearch) {
-                Icon(
-                    if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
-                    contentDescription = if (isSearchActive) "Закрыть" else "Поиск",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+            if (showSearchButton) {
+                IconButton(onClick = onToggleSearch) {
+                    Icon(
+                        if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
+                        contentDescription = if (isSearchActive) "Закрыть" else "Поиск",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

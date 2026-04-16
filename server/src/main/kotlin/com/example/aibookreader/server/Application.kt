@@ -60,6 +60,7 @@ fun Application.module(appConfig: AppConfig = AppConfig.fromEnvironment()) {
         allowHeader(HttpHeaders.Authorization)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Options)
     }
 

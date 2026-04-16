@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aibookreader.domain.model.Book
 import com.example.aibookreader.domain.model.ChatMessage
+import com.example.aibookreader.domain.repository.AiRepository
 import com.example.aibookreader.domain.repository.BookRepository
 import com.example.aibookreader.domain.usecase.ClearChatHistoryUseCase
 import com.example.aibookreader.domain.usecase.GetChatHistoryUseCase
@@ -20,10 +21,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
@@ -63,6 +66,7 @@ data class ReadiumUiState(
     val isSheetOpen: Boolean = false,
     val isAiLoading: Boolean = false,
     val aiError: String? = null,
+    val aiChatError: AiChatErrorUi? = null,
     val chatMessages: List<ChatMessage> = emptyList(),
     val isActionMode: Boolean = true,
 
@@ -84,6 +88,7 @@ class ReadiumReaderViewModel @Inject constructor(
     private val sendAiRequestUseCase: SendAiRequestUseCase,
     private val getChatHistoryUseCase: GetChatHistoryUseCase,
     private val clearChatHistoryUseCase: ClearChatHistoryUseCase,
+    private val aiRepository: AiRepository,
     private val themeManager: ThemeManager
 ) : ViewModel() {
 
@@ -99,6 +104,8 @@ class ReadiumReaderViewModel @Inject constructor(
 
     /** Текущая позиция в книге (Readium Locator: href, progression, выделение и т.д.). */
     private var currentLocator: Locator? = null
+
+    private val aiSendMutex = Mutex()
 
     /** Базовое число позиций Readium (~фрагменты текста); «страницы» в UI масштабируются от шрифта/интервала. */
     private var baseReadiumPositionCount: Int = 1
@@ -119,9 +126,18 @@ class ReadiumReaderViewModel @Inject constructor(
             return
         }
 
-        getChatHistoryUseCase(bookId)
-            .onEach { msgs -> _uiState.update { it.copy(chatMessages = msgs) } }
-            .launchIn(viewModelScope)
+        combine(
+            getChatHistoryUseCase(bookId),
+            aiRepository.observePendingFailure(bookId)
+        ) { msgs, pending ->
+            val err = pending?.let { p ->
+                AiChatErrorUi(
+                    message = p.errorMessage,
+                    retry = PendingAiRetry(prompt = p.prompt, userMessage = p.userMessage)
+                )
+            }
+            _uiState.update { s -> s.copy(chatMessages = msgs, aiChatError = err) }
+        }.launchIn(viewModelScope)
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -243,43 +259,121 @@ class ReadiumReaderViewModel @Inject constructor(
     }
 
     fun setSelectedText(text: String) {
+        viewModelScope.launch { aiRepository.clearPendingFailure(bookId) }
         _uiState.update {
-            it.copy(selectedText = text, isSheetOpen = true, aiError = null, isActionMode = true)
+            it.copy(
+                selectedText = text,
+                isSheetOpen = true,
+                aiError = null,
+                isActionMode = true
+            )
         }
     }
 
     fun openAiSheet() {
         val msgs = _uiState.value.chatMessages
         _uiState.update {
-            it.copy(isSheetOpen = true, isActionMode = msgs.isEmpty(), aiError = null)
+            it.copy(
+                isSheetOpen = true,
+                isActionMode = msgs.isEmpty(),
+                aiError = null
+            )
         }
     }
 
     fun switchToChat() { _uiState.update { it.copy(isActionMode = false) } }
     fun switchToActions() { _uiState.update { it.copy(isActionMode = true) } }
-    fun closeSheet() { _uiState.update { it.copy(isSheetOpen = false) } }
+    fun closeSheet() {
+        _uiState.update { it.copy(isSheetOpen = false) }
+    }
 
     fun onAiActionClick(action: String) {
         val sel = _uiState.value.selectedText ?: return
         val context = _uiState.value.pageContext
+        val (userMessage, prompt) = sendAiRequestUseCase.buildPrompt(action, sel, context)
         viewModelScope.launch {
-            _uiState.update { it.copy(isAiLoading = true, aiError = null, isActionMode = false) }
-            sendAiRequestUseCase(bookId, action, sel, context).fold(
-                onSuccess = { _uiState.update { it.copy(isAiLoading = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isAiLoading = false, aiError = e.message) } }
-            )
+            if (!aiSendMutex.tryLock()) return@launch
+            try {
+                _uiState.update {
+                    it.copy(
+                        isAiLoading = true,
+                        aiError = null,
+                        isActionMode = false
+                    )
+                }
+                sendAiRequestUseCase.execute(bookId, prompt, userMessage, true).fold(
+                    onSuccess = { _uiState.update { s -> s.copy(isAiLoading = false) } },
+                    onFailure = { e ->
+                        aiRepository.savePendingFailure(
+                            bookId,
+                            prompt,
+                            userMessage,
+                            AiErrorMessages.format(e)
+                        )
+                        _uiState.update { s -> s.copy(isAiLoading = false) }
+                    }
+                )
+            } finally {
+                aiSendMutex.unlock()
+            }
         }
     }
 
     fun sendChatMessage(message: String) {
+        val trimmed = message.trim()
+        if (trimmed.isEmpty()) return
         val sel = _uiState.value.selectedText ?: ""
         val context = _uiState.value.pageContext
+        val (userMessage, prompt) = sendAiRequestUseCase.buildPrompt(trimmed, sel, context)
         viewModelScope.launch {
-            _uiState.update { it.copy(isAiLoading = true, aiError = null, isActionMode = false) }
-            sendAiRequestUseCase(bookId, message, sel, context).fold(
-                onSuccess = { _uiState.update { it.copy(isAiLoading = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isAiLoading = false, aiError = e.message) } }
-            )
+            if (!aiSendMutex.tryLock()) return@launch
+            try {
+                _uiState.update {
+                    it.copy(
+                        isAiLoading = true,
+                        aiError = null,
+                        isActionMode = false
+                    )
+                }
+                sendAiRequestUseCase.execute(bookId, prompt, userMessage, true).fold(
+                    onSuccess = { _uiState.update { s -> s.copy(isAiLoading = false) } },
+                    onFailure = { e ->
+                        aiRepository.savePendingFailure(
+                            bookId,
+                            prompt,
+                            userMessage,
+                            AiErrorMessages.format(e)
+                        )
+                        _uiState.update { s -> s.copy(isAiLoading = false) }
+                    }
+                )
+            } finally {
+                aiSendMutex.unlock()
+            }
+        }
+    }
+
+    fun retryLastAiRequest() {
+        val retry = _uiState.value.aiChatError?.retry ?: return
+        viewModelScope.launch {
+            if (!aiSendMutex.tryLock()) return@launch
+            try {
+                _uiState.update { it.copy(isAiLoading = true, aiError = null) }
+                sendAiRequestUseCase.execute(bookId, retry.prompt, retry.userMessage, false).fold(
+                    onSuccess = { _uiState.update { s -> s.copy(isAiLoading = false) } },
+                    onFailure = { e ->
+                        aiRepository.savePendingFailure(
+                            bookId,
+                            retry.prompt,
+                            retry.userMessage,
+                            AiErrorMessages.format(e)
+                        )
+                        _uiState.update { s -> s.copy(isAiLoading = false) }
+                    }
+                )
+            } finally {
+                aiSendMutex.unlock()
+            }
         }
     }
 

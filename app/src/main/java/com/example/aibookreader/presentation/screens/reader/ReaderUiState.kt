@@ -30,6 +30,7 @@ data class ReaderUiState(
     val isSheetOpen: Boolean = false,
     val isAiLoading: Boolean = false,
     val aiError: String? = null,
+    val aiChatError: AiChatErrorUi? = null,
     val chatMessages: List<ChatMessage> = emptyList(),
     val isActionMode: Boolean = true,
 

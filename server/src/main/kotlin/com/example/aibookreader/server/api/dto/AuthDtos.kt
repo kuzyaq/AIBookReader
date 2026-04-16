@@ -30,7 +30,13 @@ data class TokenResponse(
 @Serializable
 data class UserResponse(
     val id: String,
-    val email: String
+    val email: String,
+    val displayName: String? = null
+)
+
+@Serializable
+data class UpdateProfileRequest(
+    val displayName: String? = null
 )
 
 @Serializable

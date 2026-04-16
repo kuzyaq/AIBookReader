@@ -31,7 +31,10 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(BookDatabaseMigrations.MIGRATION_8_9)
+            .addMigrations(
+                BookDatabaseMigrations.MIGRATION_8_9,
+                BookDatabaseMigrations.MIGRATION_9_10
+            )
             .build()
     }
 

@@ -17,13 +17,30 @@ class GetChatHistoryUseCase @Inject constructor(
 
 class SendAiRequestUseCase @Inject constructor(
     private val repository: AiRepository
-){
-    suspend operator fun invoke(bookId: Int, action: String, selectedText: String, pageContext: String = ""): Result<String> {
-        val (userMessage, prompt) = buildPrompt(action, selectedText, pageContext)
-        return repository.sendAiRequest(bookId, prompt, userMessage)
+) {
+    fun buildPrompt(action: String, selectedText: String, pageContext: String): Pair<String, String> =
+        buildPromptInternal(action, selectedText, pageContext)
+
+    suspend fun execute(
+        bookId: Int,
+        prompt: String,
+        userMessage: String,
+        appendUserMessageToHistory: Boolean
+    ): Result<String> =
+        repository.sendAiRequest(bookId, prompt, userMessage, appendUserMessageToHistory)
+
+    suspend operator fun invoke(
+        bookId: Int,
+        action: String,
+        selectedText: String,
+        pageContext: String = "",
+        appendUserMessageToHistory: Boolean = true
+    ): Result<String> {
+        val (userMessage, prompt) = buildPromptInternal(action, selectedText, pageContext)
+        return execute(bookId, prompt, userMessage, appendUserMessageToHistory)
     }
 
-    private fun buildPrompt(action: String, selectedText: String, pageContext: String): Pair<String, String> {
+    private fun buildPromptInternal(action: String, selectedText: String, pageContext: String): Pair<String, String> {
 
         val contextSection = if (pageContext.isNotBlank() && pageContext != selectedText) {
             "Контекст (текущая страница книги):\n«$pageContext»\n\n"
@@ -45,13 +62,6 @@ class SendAiRequestUseCase @Inject constructor(
                         "Задание: Сделай краткий пересказ выделенного фрагмента. " +
                         "Учти что происходило на странице для полного понимания. " +
                         "Отвечай на русском языке. Убери форматирование текста."
-            )
-            "quiz" -> Pair(
-                "Создай тест",
-                "${contextSection}${selectedSection}" +
-                        "Задание: Создай 3 вопроса с вариантами ответов для проверки " +
-                        "понимания выделенного фрагмента. Вопросы должны учитывать " +
-                        "контекст страницы. Отвечай на русском языке. Убери форматирование текста."
             )
             "translate" -> Pair(
                 "Переведи текст: \n«$selectedText»",
