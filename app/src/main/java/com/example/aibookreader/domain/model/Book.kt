@@ -34,7 +34,9 @@ data class Book(
 
     val remoteBookId: String? = null,
     val remoteBookVersion: Long? = null,
-    val remoteProgressVersion: Long? = null
+    val remoteProgressVersion: Long? = null,
+    val lastRemoteChatSyncAt: String? = null,
+    val pendingRemoteLibraryBookId: String? = null
 ) {
     fun hasCover(): Boolean = coverImage != null
 

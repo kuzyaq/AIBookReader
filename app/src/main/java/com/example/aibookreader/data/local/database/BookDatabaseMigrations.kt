@@ -114,4 +114,32 @@ object BookDatabaseMigrations {
             )
         }
     }
+
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE books ADD COLUMN lastRemoteChatSyncAt TEXT")
+            db.execSQL("ALTER TABLE chat_history ADD COLUMN clientUuid TEXT")
+            db.execSQL("ALTER TABLE chat_history ADD COLUMN synced INTEGER NOT NULL DEFAULT 0")
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `sync_outbox` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `operation` TEXT NOT NULL,
+                    `localBookId` INTEGER NOT NULL,
+                    `payload` TEXT,
+                    `createdAt` INTEGER NOT NULL,
+                    FOREIGN KEY(`localBookId`) REFERENCES `books`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_sync_outbox_localBookId` ON `sync_outbox` (`localBookId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_sync_outbox_createdAt` ON `sync_outbox` (`createdAt`)")
+        }
+    }
+
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE books ADD COLUMN pendingRemoteLibraryBookId TEXT")
+        }
+    }
 }

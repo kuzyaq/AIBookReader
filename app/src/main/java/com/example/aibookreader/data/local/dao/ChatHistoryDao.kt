@@ -31,6 +31,18 @@ interface ChatHistoryDao {
 
     @Query("DELETE FROM pending_ai_retry WHERE bookId = :bookId")
     suspend fun clearPendingRetry(bookId: Int)
+
+    @Query("SELECT * FROM chat_history WHERE bookId = :bookId AND synced = 0 ORDER BY timestamp ASC")
+    suspend fun getUnsynced(bookId: Int): List<ChatMessageEntity>
+
+    @Query("UPDATE chat_history SET synced = 1 WHERE id IN (:ids)")
+    suspend fun markSynced(ids: List<Int>)
+
+    @Query("UPDATE chat_history SET clientUuid = :uuid WHERE id = :id")
+    suspend fun setClientUuid(id: Int, uuid: String)
+
+    @Query("SELECT * FROM chat_history WHERE bookId = :bookId AND clientUuid = :uuid LIMIT 1")
+    suspend fun findByClientUuid(bookId: Int, uuid: String): ChatMessageEntity?
 }
 
 

@@ -27,7 +27,9 @@ object BookMapper {
             progressFraction = p?.progressFraction,
             remoteBookId = entity.remoteBookId,
             remoteBookVersion = entity.remoteBookVersion,
-            remoteProgressVersion = p?.remoteProgressVersion
+            remoteProgressVersion = p?.remoteProgressVersion,
+            lastRemoteChatSyncAt = entity.lastRemoteChatSyncAt,
+            pendingRemoteLibraryBookId = entity.pendingRemoteLibraryBookId
         )
     }
 
@@ -47,7 +49,9 @@ object BookMapper {
             opfBasePath = domain.opfBasePath,
             format = domain.format,
             remoteBookId = domain.remoteBookId,
-            remoteBookVersion = domain.remoteBookVersion
+            remoteBookVersion = domain.remoteBookVersion,
+            lastRemoteChatSyncAt = domain.lastRemoteChatSyncAt,
+            pendingRemoteLibraryBookId = domain.pendingRemoteLibraryBookId
         )
     }
 

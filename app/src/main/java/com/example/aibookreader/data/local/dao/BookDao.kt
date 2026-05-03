@@ -68,4 +68,28 @@ interface BookDao {
 
     @Query("UPDATE books SET lastReadAt = :timestamp WHERE id = :bookId")
     suspend fun updateLastReadAt(bookId: Int, timestamp: Long = System.currentTimeMillis())
+
+    @Query(
+        """
+        UPDATE books SET remoteBookId = :remoteId, remoteBookVersion = :version,
+        pendingRemoteLibraryBookId = NULL
+        WHERE id = :bookId
+        """
+    )
+    suspend fun updateRemoteMeta(bookId: Int, remoteId: String, version: Long?)
+
+    @Query("UPDATE books SET pendingRemoteLibraryBookId = :serverDraftId WHERE id = :bookId")
+    suspend fun setPendingRemoteLibraryBookId(bookId: Int, serverDraftId: String)
+
+    @Query("UPDATE books SET pendingRemoteLibraryBookId = NULL WHERE id = :bookId")
+    suspend fun clearPendingRemoteLibraryBookId(bookId: Int)
+
+    @Query("UPDATE books SET lastRemoteChatSyncAt = :iso WHERE id = :bookId")
+    suspend fun updateLastRemoteChatSyncAt(bookId: Int, iso: String?)
+
+    @Query("SELECT * FROM books WHERE remoteBookId = :remoteId LIMIT 1")
+    suspend fun getBookByRemoteId(remoteId: String): BookEntity?
+
+    @Query("SELECT * FROM books WHERE remoteBookId IS NOT NULL AND status = 'READY'")
+    suspend fun getBooksWithRemote(): List<BookEntity>
 }

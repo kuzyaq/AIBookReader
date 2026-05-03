@@ -9,6 +9,7 @@ import com.example.aibookreader.data.local.mapper.BookMapper
 import com.example.aibookreader.domain.model.Book
 import com.example.aibookreader.domain.model.BookFormat
 import com.example.aibookreader.domain.model.BookStatus
+import com.example.aibookreader.data.sync.LibrarySyncEnqueuer
 import com.example.aibookreader.domain.repository.BookRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -21,7 +22,8 @@ import org.json.JSONObject
 @Singleton
 class BookRepositoryImpl @Inject constructor(
     private val bookDao: BookDao,
-    private val readingProgressDao: ReadingProgressDao
+    private val readingProgressDao: ReadingProgressDao,
+    private val librarySyncEnqueuer: LibrarySyncEnqueuer
 ) : BookRepository {
 
     override fun getAllBooks(): Flow<List<Book>> {
@@ -74,6 +76,9 @@ class BookRepositoryImpl @Inject constructor(
                     book.copy(id = insertedId)
                 )
             )
+            if (book.remoteBookId == null) {
+                librarySyncEnqueuer.enqueueBookUpload(insertedId)
+            }
             Result.success(insertedId)
         } catch (e: Exception) {
             Result.failure(e)
@@ -132,7 +137,8 @@ class BookRepositoryImpl @Inject constructor(
         pages: Int,
         extractedDir: String?,
         opfBasePath: String?,
-        format: BookFormat
+        format: BookFormat,
+        remoteBookId: String?
     ): Int {
         val fileSize = File(newPath).takeIf { it.exists() }?.length() ?: 0L
         bookDao.finishImport(
@@ -160,6 +166,11 @@ class BookRepositoryImpl @Inject constructor(
                 remoteProgressVersion = existing?.remoteProgressVersion
             )
         )
+        if (remoteBookId != null) {
+            bookDao.updateRemoteMeta(book.id, remoteBookId, 1L)
+        } else {
+            librarySyncEnqueuer.enqueueBookUpload(book.id)
+        }
         return book.id
     }
 
@@ -185,6 +196,7 @@ class BookRepositoryImpl @Inject constructor(
                 )
             )
             bookDao.updateLastReadAt(bookId, now)
+            librarySyncEnqueuer.enqueueProgressPush(bookId)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -206,6 +218,7 @@ class BookRepositoryImpl @Inject constructor(
             )
         )
         bookDao.updateLastReadAt(bookId, now)
+        librarySyncEnqueuer.enqueueProgressPush(bookId)
     }
 
     private fun fractionFromLocatorJson(locatorJson: String?): Float? {

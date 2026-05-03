@@ -35,7 +35,8 @@ interface BookRepository {
         pages: Int,
         extractedDir: String? = null,
         opfBasePath: String? = null,
-        format: BookFormat
+        format: BookFormat,
+        remoteBookId: String? = null
     ): Int
 
     suspend fun updateReadingProgress(bookId: Int, page: Int): Result<Unit>

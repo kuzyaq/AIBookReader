@@ -293,20 +293,20 @@ private fun ReadyBookContent(book: Book) {
             )
         }
 
-        HorizontalDivider(
-            modifier  = Modifier.padding(horizontal = 16.dp),
-            thickness = 0.5.dp,
-            color     = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
-        )
-
-        // AI-чипы (только "Объяснить" и "Чат" — без теста и пересказа)
-        Row(
-            modifier              = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            AiQuickChip("Объяснить", Icons.Default.Lightbulb) { }
-            AiQuickChip("Чат с ИИ",  Icons.AutoMirrored.Filled.Chat) { }
-        }
+//        HorizontalDivider(
+//            modifier  = Modifier.padding(horizontal = 16.dp),
+//            thickness = 0.5.dp,
+//            color     = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+//        )
+//
+//        // AI-чипы (только "Объяснить" и "Чат" — без теста и пересказа)
+//        Row(
+//            modifier              = Modifier.fillMaxWidth().padding(12.dp),
+//            horizontalArrangement = Arrangement.spacedBy(8.dp)
+//        ) {
+//            AiQuickChip("Объяснить", Icons.Default.Lightbulb) { }
+//            AiQuickChip("Чат с ИИ",  Icons.AutoMirrored.Filled.Chat) { }
+//        }
     }
 }
 

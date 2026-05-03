@@ -12,6 +12,8 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -26,6 +28,12 @@ fun AddBookScreen(viewModel: AddBookViewModel = hiltViewModel()) {
     val context = LocalContext.current
     var selectedSection by remember { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(selectedSection) {
+        if (selectedSection == 1) {
+            viewModel.refreshCloudLibrary()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.importEvents.collect { event ->
@@ -98,7 +106,7 @@ fun AddBookScreen(viewModel: AddBookViewModel = hiltViewModel()) {
                 )
             })
 
-            1 -> ServerBooksSection()
+            1 -> ServerBooksSection(viewModel = viewModel)
         }
     }
     SnackbarHost(
@@ -170,34 +178,48 @@ private fun LocalFileSection(onPickFile: () -> Unit) {
 // Секция: готовые книги с сервера
 
 @Composable
-private fun ServerBooksSection() {
-    // Заглушка
-    val mockBooks = listOf(
-        "Преступление и наказание" to "Фёдор Достоевский",
-        "Война и мир" to "Лев Толстой",
-        "Мастер и Маргарита" to "Михаил Булгаков",
-        "Отцы и дети" to "Иван Тургенев",
-        "Анна Каренина" to "Лев Толстой"
-    )
+private fun ServerBooksSection(viewModel: AddBookViewModel) {
+    val remoteBooks by viewModel.remoteBooks.collectAsState()
+    val loggedIn by viewModel.isLoggedIn.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            "Классическая литература",
+            if (loggedIn) "Моя библиотека в облаке" else "Войдите в аккаунт",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
+        if (!loggedIn) {
+            Text(
+                "После входа здесь появятся книги, синхронизированные с сервером. Их можно скачать на это устройство.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            return
+        }
+
+        if (remoteBooks.isEmpty()) {
+            Text(
+                "Пока нет книг в облаке. Добавьте книгу с устройства — она загрузится на сервер в фоне.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
         LazyColumn(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(mockBooks.size) { index ->
-                val (title, author) = mockBooks[index]
+            items(remoteBooks.size) { index ->
+                val b = remoteBooks[index]
                 ServerBookItem(
-                    title = title,
-                    author = author,
-                    onDownload = { /* TODO: вызов API */ }
+                    title = b.title,
+                    author = b.author,
+                    onDevice = b.onDevice,
+                    onDownload = { viewModel.downloadFromCloud(b.id, b.format) }
                 )
             }
         }
@@ -208,6 +230,7 @@ private fun ServerBooksSection() {
 private fun ServerBookItem(
     title: String,
     author: String,
+    onDevice: Boolean,
     onDownload: () -> Unit
 ) {
     Card(
@@ -246,13 +269,23 @@ private fun ServerBookItem(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
                 )
+                if (onDevice) {
+                    Text(
+                        "На устройстве",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
 
-            FilledTonalIconButton(
-                onClick = onDownload,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+            if (!onDevice) {
+                FilledTonalIconButton(
+                    onClick = onDownload,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                }
             }
         }
     }

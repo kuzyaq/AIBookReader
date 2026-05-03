@@ -9,7 +9,9 @@ import com.example.aibookreader.data.remote.gemini.buildRequest
 import com.example.aibookreader.data.remote.gemini.extractText
 import com.example.aibookreader.domain.model.ChatMessage
 import com.example.aibookreader.domain.model.PendingAiFailure
+import com.example.aibookreader.data.sync.LibrarySyncEnqueuer
 import com.example.aibookreader.domain.repository.AiRepository
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -19,7 +21,8 @@ import javax.inject.Inject
 
 class AiRepositoryImpl @Inject constructor(
     private val chatHistoryDao: ChatHistoryDao,
-    private val geminiApiService: GeminiApiService
+    private val geminiApiService: GeminiApiService,
+    private val librarySyncEnqueuer: LibrarySyncEnqueuer
 ) : AiRepository {
 
     override fun getChatHistory(bookId: Int): Flow<List<ChatMessage>> {
@@ -74,7 +77,9 @@ class AiRepositoryImpl @Inject constructor(
                         bookId = bookId,
                         message = userMessage,
                         isUser = true,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = System.currentTimeMillis(),
+                        clientUuid = UUID.randomUUID().toString(),
+                        synced = 0
                     )
                 )
             }
@@ -93,9 +98,13 @@ class AiRepositoryImpl @Inject constructor(
                     bookId = bookId,
                     message = aiText,
                     isUser = false,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    clientUuid = UUID.randomUUID().toString(),
+                    synced = 0
                 )
             )
+
+            librarySyncEnqueuer.enqueueChatPush(bookId)
 
             aiText
         }

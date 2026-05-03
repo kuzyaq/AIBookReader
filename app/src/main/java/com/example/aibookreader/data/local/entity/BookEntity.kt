@@ -33,5 +33,12 @@ data class BookEntity(
     /** Идентификатор записи на сервере (библиотека / файл), для синхронизации между устройствами. */
     val remoteBookId: String? = null,
     /** Версия метаданных с сервера (конфликты / ETag). */
-    val remoteBookVersion: Long? = null
+    val remoteBookVersion: Long? = null,
+    /** ISO-8601 время последнего сообщения чата, подтянутого с сервера (курсор GET …/chat/messages?after=). */
+    val lastRemoteChatSyncAt: String? = null,
+    /**
+     * UUID записи на сервере в статусе pending_upload; чтобы при RETRY не вызывать init повторно
+     * (иначе в MinIO появляются лишние объекты).
+     */
+    val pendingRemoteLibraryBookId: String? = null
 )

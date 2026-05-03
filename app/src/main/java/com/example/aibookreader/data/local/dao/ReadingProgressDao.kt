@@ -20,4 +20,7 @@ interface ReadingProgressDao {
 
     @Query("DELETE FROM reading_progress WHERE bookId = :bookId")
     suspend fun deleteForBook(bookId: Int)
+
+    @Query("UPDATE reading_progress SET remoteProgressVersion = :v WHERE bookId = :bookId")
+    suspend fun updateRemoteProgressVersion(bookId: Int, v: Long)
 }

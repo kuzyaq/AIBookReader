@@ -38,11 +38,12 @@ class ImportBookWorker @AssistedInject constructor(
 
             val isEpub = filePath.endsWith(".epub", ignoreCase = true)
             val isPdf = filePath.endsWith(".pdf", ignoreCase = true)
+            val remoteBookId = inputData.getString(KEY_REMOTE_BOOK_ID)
 
             val useCaseResult = when {
-                isEpub -> importEpubBookUseCase(filePath)
+                isEpub -> importEpubBookUseCase(filePath, remoteBookId)
 
-                isPdf -> importPdfBookUseCase(filePath, applicationContext)
+                isPdf -> importPdfBookUseCase(filePath, applicationContext, remoteBookId)
 
                 else -> {
                     repository.markImportFailed(filePath)
@@ -83,5 +84,6 @@ class ImportBookWorker @AssistedInject constructor(
 
     companion object {
         const val KEY_FILE_PATH = "file_path"
+        const val KEY_REMOTE_BOOK_ID = "remote_book_id"
     }
 }

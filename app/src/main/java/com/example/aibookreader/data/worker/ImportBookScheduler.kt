@@ -5,18 +5,19 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
-import androidx.work.workDataOf
+import androidx.work.Data
 import javax.inject.Inject
 
 class ImportBookScheduler @Inject constructor(
     private val workManager: WorkManager
 ){
 
-    fun importBook(filePath: String) {
+    fun importBook(filePath: String, remoteBookId: String? = null) {
 
-        val data = workDataOf(
-            ImportBookWorker.KEY_FILE_PATH to filePath
-        )
+        val dataBuilder = Data.Builder()
+            .putString(ImportBookWorker.KEY_FILE_PATH, filePath)
+        remoteBookId?.let { dataBuilder.putString(ImportBookWorker.KEY_REMOTE_BOOK_ID, it) }
+        val data = dataBuilder.build()
 
         val request = OneTimeWorkRequestBuilder<ImportBookWorker>()
             .setInputData(data)

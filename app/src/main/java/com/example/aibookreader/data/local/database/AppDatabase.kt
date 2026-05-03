@@ -9,12 +9,14 @@ import com.example.aibookreader.data.local.dao.ChapterDao
 import com.example.aibookreader.data.local.dao.ChatHistoryDao
 import com.example.aibookreader.data.local.dao.ReaderBlockDao
 import com.example.aibookreader.data.local.dao.ReadingProgressDao
+import com.example.aibookreader.data.local.dao.SyncOutboxDao
 import com.example.aibookreader.data.local.entity.BookEntity
 import com.example.aibookreader.data.local.entity.ChapterEntity
 import com.example.aibookreader.data.local.entity.ChatMessageEntity
 import com.example.aibookreader.data.local.entity.PendingAiRetryEntity
 import com.example.aibookreader.data.local.entity.ReaderBlockEntity
 import com.example.aibookreader.data.local.entity.ReadingProgressEntity
+import com.example.aibookreader.data.local.entity.SyncOutboxEntity
 
 
 @Database(
@@ -24,9 +26,10 @@ import com.example.aibookreader.data.local.entity.ReadingProgressEntity
         ReaderBlockEntity::class,
         ChatMessageEntity::class,
         ChapterEntity::class,
-        PendingAiRetryEntity::class
+        PendingAiRetryEntity::class,
+        SyncOutboxEntity::class
     ],
-    version = 10,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -37,6 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun readingProgressDao(): ReadingProgressDao
     abstract fun chatHistoryDao(): ChatHistoryDao
     abstract fun chapterDao(): ChapterDao
+    abstract fun syncOutboxDao(): SyncOutboxDao
 
     companion object {
         const val DATABASE_NAME = "book_reader_database"

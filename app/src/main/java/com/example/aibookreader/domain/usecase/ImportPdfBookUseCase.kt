@@ -15,18 +15,26 @@ class ImportPdfBookUseCase @Inject constructor(
     private val repository: BookRepository,
     private val pdfProcessor: PdfProcessor
 ) {
-    suspend operator fun invoke(filePath: String, context: Context): Result<Int> =
+    suspend operator fun invoke(
+        filePath: String,
+        context: Context,
+        remoteBookId: String? = null
+    ): Result<Int> =
         withContext(Dispatchers.IO) {
             try {
                 val pdfData = pdfProcessor.processPdf(filePath, context)
-                val book = createBookFromPdf(pdfData, filePath)
+                val book = createBookFromPdf(pdfData, filePath, remoteBookId)
                 repository.addBook(book)
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
 
-    private fun createBookFromPdf(pdfData: PdfProcessor.PdfData, filePath: String): Book {
+    private fun createBookFromPdf(
+        pdfData: PdfProcessor.PdfData,
+        filePath: String,
+        remoteBookId: String?
+    ): Book {
         return Book(
             id = 0,
             title = pdfData.title?.takeIf { it.isNotBlank() } ?: "Без названия",
@@ -39,7 +47,9 @@ class ImportPdfBookUseCase @Inject constructor(
             createdAt = System.currentTimeMillis(),
             lastReadAt = System.currentTimeMillis(),
             status = BookStatus.READY,
-            format = BookFormat.PDF
+            format = BookFormat.PDF,
+            remoteBookId = remoteBookId,
+            remoteBookVersion = remoteBookId?.let { 1L }
         )
     }
 }

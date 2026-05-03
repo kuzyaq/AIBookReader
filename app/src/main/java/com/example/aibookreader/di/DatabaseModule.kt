@@ -7,6 +7,7 @@ import com.example.aibookreader.data.local.dao.ChapterDao
 import com.example.aibookreader.data.local.dao.ChatHistoryDao
 import com.example.aibookreader.data.local.dao.ReaderBlockDao
 import com.example.aibookreader.data.local.dao.ReadingProgressDao
+import com.example.aibookreader.data.local.dao.SyncOutboxDao
 import com.example.aibookreader.data.local.database.AppDatabase
 import com.example.aibookreader.data.local.database.BookDatabaseMigrations
 import dagger.Module
@@ -33,7 +34,9 @@ object DatabaseModule {
         )
             .addMigrations(
                 BookDatabaseMigrations.MIGRATION_8_9,
-                BookDatabaseMigrations.MIGRATION_9_10
+                BookDatabaseMigrations.MIGRATION_9_10,
+                BookDatabaseMigrations.MIGRATION_10_11,
+                BookDatabaseMigrations.MIGRATION_11_12
             )
             .build()
     }
@@ -67,4 +70,8 @@ object DatabaseModule {
     fun provideChapterDao(database: AppDatabase): ChapterDao {
         return database.chapterDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideSyncOutboxDao(database: AppDatabase): SyncOutboxDao = database.syncOutboxDao()
 }

@@ -16,7 +16,7 @@ class ImportEpubBookUseCase @Inject constructor(
     private val epubExtractor: EpubExtractor,
     private val fileStorageRepository: FileStorageRepository
 ) {
-    suspend operator fun invoke(filePath: String): Result<Unit> {
+    suspend operator fun invoke(filePath: String, remoteBookId: String? = null): Result<Unit> {
         return try {
             val internalPath = fileStorageRepository.copyBookToInternal(filePath)
 
@@ -38,7 +38,8 @@ class ImportEpubBookUseCase @Inject constructor(
                 pages = manifest.spineItems.size,
                 extractedDir = extractedDir.absolutePath,
                 opfBasePath = manifest.basePath.absolutePath,
-                format = BookFormat.EPUB
+                format = BookFormat.EPUB,
+                remoteBookId = remoteBookId
             )
 
             val chapters = manifest.spineItems.mapIndexed { index, spine ->

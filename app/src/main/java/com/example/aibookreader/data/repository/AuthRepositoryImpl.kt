@@ -10,6 +10,7 @@ import com.example.aibookreader.data.remote.auth.UpdateProfileRequestDto
 import com.example.aibookreader.data.remote.auth.TokenRefresher
 import com.google.gson.Gson
 import com.example.aibookreader.domain.model.AuthUser
+import com.example.aibookreader.data.sync.LibrarySyncScheduler
 import com.example.aibookreader.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,8 @@ class AuthRepositoryImpl @Inject constructor(
     @Named("authedApi") private val authedApi: AuthApiService,
     private val tokenStorage: AuthTokenStorage,
     private val accessTokenHolder: AccessTokenHolder,
-    private val tokenRefresher: TokenRefresher
+    private val tokenRefresher: TokenRefresher,
+    private val librarySyncScheduler: LibrarySyncScheduler
 ) : AuthRepository {
 
     private val _currentUser = MutableStateFlow<AuthUser?>(null)
@@ -42,6 +44,7 @@ class AuthRepositoryImpl @Inject constructor(
         }
         return try {
             loadProfile()
+            librarySyncScheduler.requestImmediateSync()
             true
         } catch (_: Exception) {
             logout()
@@ -54,6 +57,7 @@ class AuthRepositoryImpl @Inject constructor(
             val tokens = publicApi.login(LoginRequestDto(email.trim(), password))
             persistTokens(tokens.accessToken, tokens.refreshToken)
             loadProfile()
+            librarySyncScheduler.requestImmediateSync()
             Result.success(Unit)
         } catch (e: HttpException) {
             Result.failure(Exception(httpErrorMessage(e)))
@@ -67,6 +71,7 @@ class AuthRepositoryImpl @Inject constructor(
             val tokens = publicApi.register(RegisterRequestDto(email.trim(), password))
             persistTokens(tokens.accessToken, tokens.refreshToken)
             loadProfile()
+            librarySyncScheduler.requestImmediateSync()
             Result.success(Unit)
         } catch (e: HttpException) {
             Result.failure(Exception(httpErrorMessage(e)))
